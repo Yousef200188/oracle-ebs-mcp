@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oracle-ebs-mcp"
+version = "1.0.0"
+description = "Production-ready MCP Server for Oracle E-Business Suite (Oracle EBS R12)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "EBS Architecture Team" }
+]
+dependencies = [
+    "mcp[cli]>=1.3.0",
+    "oracledb>=2.5.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.14.0",
+    "black>=24.4.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+oracle-ebs-mcp = "oracle_ebs_mcp.server:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

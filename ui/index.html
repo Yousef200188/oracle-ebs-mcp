@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oracle EBS R12 Development MCP Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@600;700&display=optional" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260915b">
+</head>
+<body>
+  <!-- Header / Navigation Bar -->
+  <header class="top-nav">
+    <div class="brand">
+      <div class="logo-badge">ORCL</div>
+      <div class="brand-text">
+        <h1>Oracle EBS R12 Development MCP</h1>
+        <span class="brand-sub">Technical Consultant Workbench • Release 12.1 / 12.2</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="env-selector">
+        <label for="envSelect">Environment:</label>
+        <select id="envSelect" onchange="handleEnvChange()">
+          <option value="DEV" selected>DEV (Development)</option>
+          <option value="TEST">TEST (Testing / QA)</option>
+          <option value="UAT">UAT (User Acceptance)</option>
+          <option value="PROD">PROD (Production - Locked)</option>
+        </select>
+      </div>
+
+      <div class="status-pill" id="targetInstance">
+        <span class="status-dot online"></span>
+        <span class="status-text">HRVIS (10.100.100.104)</span>
+      </div>
+
+      <button class="btn btn-outline btn-xs" onclick="testEBSConnection()" title="Test live connection to Oracle EBS instance">🔌 Test Connection</button>
+    </div>
+  </header>
+
+  <!-- Production Safety Banner (shown only on PROD) -->
+  <div id="prodWarningBanner" class="warning-banner hidden">
+    <span class="banner-icon">⚠️</span>
+    <span class="banner-text"><strong>CAUTION: PRODUCTION ENVIRONMENT SELECTED.</strong> Direct execution is locked. All scripts must be reviewed, verified with rollback procedures, and executed under strict change management (MD120).</span>
+  </div>
+
+  <main class="workbench-container">
+    <!-- Module Tabs -->
+    <nav class="module-tabs" role="tablist">
+      <button class="tab-btn active" data-module="concurrent" onclick="switchModule('concurrent')">
+        <span class="tab-icon">⚙️</span> Concurrent Program
+      </button>
+      <button class="tab-btn" data-module="report" onclick="switchModule('report')">
+        <span class="tab-icon">📊</span> Report Generator
+      </button>
+      <button class="tab-btn" data-module="workflow" onclick="switchModule('workflow')">
+        <span class="tab-icon">🔀</span> Workflow
+      </button>
+      <button class="tab-btn" data-module="alert" onclick="switchModule('alert')">
+        <span class="tab-icon">🔔</span> Alert Manager
+      </button>
+      <button class="tab-btn" data-module="oaf" onclick="switchModule('oaf')">
+        <span class="tab-icon">🌐</span> OAF Studio
+      </button>
+      <button class="tab-btn" data-module="sql" onclick="switchModule('sql')">
+        <span class="tab-icon">💾</span> SQL & PL/SQL
+      </button>
+    </nav>
+
+    <!-- Main Workspace Split: Form Config (Left) | Generated Output (Right) -->
+    <div class="workspace-grid">
+      
+      <!-- ==================== LEFT PANE: CONFIGURATION FORMS ==================== -->
+      <section class="panel config-panel">
+        
+        <!-- MODULE 1: CONCURRENT PROGRAM -->
+        <div id="panel-concurrent" class="module-panel active">
+          <div class="panel-header">
+            <h2>Concurrent Program & Executable Generator</h2>
+            <p class="panel-desc">Define Concurrent Programs, Executables, SRS Parameters, and Request Group attachments.</p>
+          </div>
+
+          <form id="form-concurrent" onsubmit="event.preventDefault();">
+            <div class="card-section">
+              <div class="section-title">Basic Information</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="cp_name">Program User Name <span class="req">*</span></label>
+                  <input type="text" id="cp_name" placeholder="e.g., XX Custom Employee Report" value="XX Custom Employee Report">
+                </div>
+                <div class="form-group">
+                  <label for="cp_short_name">Program Short Name <span class="req">*</span></label>
+                  <input type="text" id="cp_short_name" placeholder="e.g., XX_EMP_REPORT" value="XX_EMP_REPORT" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="cp_appl">Application Short Name <span class="req">*</span></label>
+                  <input type="text" id="cp_appl" placeholder="e.g., PER or XXCUS" value="PER" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="cp_request_group">Request Group</label>
+                  <input type="text" id="cp_request_group" placeholder="e.g., HR Reports and Processes" value="HR Reports and Processes">
+                </div>
+              </div>
+            </div>
+
+            <div class="card-section">
+              <div class="section-title">Executable Definition</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="cp_exec_name">Executable Name <span class="req">*</span></label>
+                  <input type="text" id="cp_exec_name" placeholder="e.g., XX_EMP_REPORT_EXEC" value="XX_EMP_REPORT_EXEC" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="cp_exec_method">Execution Method <span class="req">*</span></label>
+                  <select id="cp_exec_method" onchange="updateExecMethodHints()">
+                    <option value="PL/SQL Stored Procedure" selected>PL/SQL Stored Procedure</option>
+                    <option value="Oracle Reports">Oracle Reports (RDF)</option>
+                    <option value="SQL*Plus">SQL*Plus Script</option>
+                    <option value="Host">Host (Linux Shell Script)</option>
+                    <option value="Java Concurrent Program">Java Concurrent Program</option>
+                  </select>
+                </div>
+                <div class="form-group span-2">
+                  <label for="cp_exec_file">Execution File Name <span class="req">*</span></label>
+                  <input type="text" id="cp_exec_file" placeholder="e.g., xx_emp_pkg.run_report or XX_EMP_REPORT.rdf" value="xx_emp_pkg.run_report">
+                  <small class="hint" id="cp_exec_hint">Package.procedure for PL/SQL, or filename without .rdf for Reports.</small>
+                </div>
+                <div class="form-group">
+                  <label for="cp_output_type">Output Format</label>
+                  <select id="cp_output_type">
+                    <option value="TEXT" selected>TEXT</option>
+                    <option value="XML">XML (BI Publisher)</option>
+                    <option value="HTML">HTML</option>
+                    <option value="PDF">PDF</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="cp_save_output">Save Output?</label>
+                  <select id="cp_save_output">
+                    <option value="Y" selected>Yes (Y)</option>
+                    <option value="N">No (N)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Parameters Manager -->
+            <div class="card-section">
+              <div class="section-header-flex">
+                <div class="section-title">Program Parameters (SRS)</div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addParameterRow('cp-params-body')">+ Add Parameter</button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="data-table" id="cp-params-table">
+                  <thead>
+                    <tr>
+                      <th width="8%">Seq</th>
+                      <th width="22%">Parameter Name</th>
+                      <th width="25%">Prompt</th>
+                      <th width="25%">Value Set</th>
+                      <th width="10%">Req?</th>
+                      <th width="10%">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cp-params-body">
+                    <tr>
+                      <td><input type="number" class="tbl-input seq" value="10" step="10"></td>
+                      <td><input type="text" class="tbl-input param-name" value="P_ORGANIZATION_ID"></td>
+                      <td><input type="text" class="tbl-input param-prompt" value="Organization"></td>
+                      <td><input type="text" class="tbl-input param-vset" value="70 Characters"></td>
+                      <td>
+                        <select class="tbl-input param-req">
+                          <option value="Y">Y</option>
+                          <option value="N" selected>N</option>
+                        </select>
+                      </td>
+                      <td><button type="button" class="btn-icon delete-btn" onclick="removeRow(this)">✕</button></td>
+                    </tr>
+                    <tr>
+                      <td><input type="number" class="tbl-input seq" value="20" step="10"></td>
+                      <td><input type="text" class="tbl-input param-name" value="P_EFFECTIVE_DATE"></td>
+                      <td><input type="text" class="tbl-input param-prompt" value="Effective Date"></td>
+                      <td><input type="text" class="tbl-input param-vset" value="FND_STANDARD_DATE"></td>
+                      <td>
+                        <select class="tbl-input param-req">
+                          <option value="Y" selected>Y</option>
+                          <option value="N">N</option>
+                        </select>
+                      </td>
+                      <td><button type="button" class="btn-icon delete-btn" onclick="removeRow(this)">✕</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" onclick="generateConcurrentScript()">⚡ Generate Registration SQL</button>
+              <button type="button" class="btn btn-secondary" onclick="generateConcurrentPLSQLPackage()">📦 Generate Package Spec & Body</button>
+              <button type="button" class="btn btn-accent" onclick="deployConcurrentDirectly()">🚀 Deploy to EBS (تطبيق في بيئة EBS)</button>
+              <button type="button" class="btn btn-outline" onclick="validateCurrentForm('concurrent')">✓ Validate</button>
+              <button type="button" class="btn btn-ghost" onclick="resetForm('form-concurrent')">↺ Reset</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- MODULE 2: REPORT GENERATOR -->
+        <div id="panel-report" class="module-panel">
+          <div class="panel-header">
+            <h2>Oracle EBS Report Generator (BI Publisher & RDF)</h2>
+            <p class="panel-desc">Generate main SQL query, XML Publisher data templates, RTF layouts, and registration scripts.</p>
+          </div>
+
+          <form id="form-report" onsubmit="event.preventDefault();">
+            <div class="card-section">
+              <div class="section-title">Report Information</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="rep_name">Report Name <span class="req">*</span></label>
+                  <input type="text" id="rep_name" value="XX Employee Details & Absence Report">
+                </div>
+                <div class="form-group">
+                  <label for="rep_short_name">Short Name <span class="req">*</span></label>
+                  <input type="text" id="rep_short_name" value="XX_EMP_ABS_REP" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="rep_appl">Application <span class="req">*</span></label>
+                  <input type="text" id="rep_appl" value="PER" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="rep_type">Report Architecture <span class="req">*</span></label>
+                  <select id="rep_type">
+                    <option value="BIP" selected>BI Publisher / XML Publisher (RDF + RTF Template)</option>
+                    <option value="SQL_DATA_ENGINE">BI Publisher (Data Template XML + RTF)</option>
+                    <option value="RDF">Classic Oracle Reports (Paper Layout RDF)</option>
+                    <option value="SQL_REPORT">SQL*Plus Spool to CSV/Excel</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="rep_output_format">Default Output Format</label>
+                  <select id="rep_output_format">
+                    <option value="EXCEL" selected>Excel (.xls / .xlsx)</option>
+                    <option value="PDF">PDF</option>
+                    <option value="HTML">HTML</option>
+                    <option value="CSV">CSV</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="rep_req_group">Request Group</label>
+                  <input type="text" id="rep_req_group" value="Human Resources Reports">
+                </div>
+              </div>
+            </div>
+
+            <!-- Report SQL Definition -->
+            <div class="card-section">
+              <div class="section-title">Main SQL Query</div>
+              <div class="form-group">
+                <textarea id="rep_sql" rows="7" class="code-textarea" oninput="updateSqlColumnPreview()" placeholder="SELECT p.person_id, p.full_name... FROM apps.per_all_people_f p WHERE ...">SELECT 
+    p.person_id,
+    p.employee_number,
+    p.full_name,
+    p.email_address,
+    TO_CHAR(p.original_date_of_hire, 'YYYY-MM-DD') AS hire_date,
+    org.name AS department_name,
+    j.name AS job_title
+FROM 
+    apps.per_all_people_f p
+    INNER JOIN apps.per_all_assignments_f a 
+        ON p.person_id = a.person_id 
+        AND a.primary_flag = 'Y' 
+        AND TRUNC(SYSDATE) BETWEEN a.effective_start_date AND a.effective_end_date
+    LEFT JOIN apps.hr_all_organization_units org 
+        ON a.organization_id = org.organization_id
+    LEFT JOIN apps.per_jobs j 
+        ON a.job_id = j.job_id
+WHERE 
+    TRUNC(SYSDATE) BETWEEN p.effective_start_date AND p.effective_end_date
+    AND (:P_ORG_ID IS NULL OR a.organization_id = :P_ORG_ID)
+    AND (:P_PERSON_ID IS NULL OR p.person_id = :P_PERSON_ID)
+ORDER BY p.employee_number</textarea>
+                <div id="rep_sql_badge" style="font-size: 11px; margin-top: 6px; padding: 6px 10px; background: rgba(56, 189, 248, 0.08); border-radius: 4px; border-left: 3px solid #38bdf8; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                  <div>
+                    <span style="color: #38bdf8; font-weight: 600;">⚡ Dynamic Query Detection:</span>
+                    <span id="detected_cols_text" style="color: var(--text-secondary); margin-left: 4px;">7 Columns: PERSON_ID, EMPLOYEE_NUMBER, FULL_NAME, EMAIL_ADDRESS, HIRE_DATE, DEPARTMENT_NAME, JOB_TITLE</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="syncSqlParametersToTable()" title="Auto-populate Parameters table with bind variables detected in SQL">
+                    🔄 Auto-Sync Parameters from SQL
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="card-section">
+              <div class="section-header-flex">
+                <div class="section-title">Report Parameters (Bind Variables)</div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addParameterRow('rep-params-body')">+ Add Parameter</button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th width="8%">Seq</th>
+                      <th width="22%">Parameter Name</th>
+                      <th width="25%">Display Prompt</th>
+                      <th width="25%">Value Set</th>
+                      <th width="10%">Req?</th>
+                      <th width="10%">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rep-params-body">
+                    <tr>
+                      <td><input type="number" class="tbl-input seq" value="10" step="10"></td>
+                      <td><input type="text" class="tbl-input param-name" value="P_ORG_ID"></td>
+                      <td><input type="text" class="tbl-input param-prompt" value="Organization"></td>
+                      <td><input type="text" class="tbl-input param-vset" value="HR_ORGANIZATIONS"></td>
+                      <td>
+                        <select class="tbl-input param-req">
+                          <option value="Y">Y</option>
+                          <option value="N" selected>N</option>
+                        </select>
+                      </td>
+                      <td><button type="button" class="btn-icon delete-btn" onclick="removeRow(this)">✕</button></td>
+                    </tr>
+                    <tr>
+                      <td><input type="number" class="tbl-input seq" value="20" step="10"></td>
+                      <td><input type="text" class="tbl-input param-name" value="P_PERSON_ID"></td>
+                      <td><input type="text" class="tbl-input param-prompt" value="Employee"></td>
+                      <td><input type="text" class="tbl-input param-vset" value="PER_EMPLOYEES"></td>
+                      <td>
+                        <select class="tbl-input param-req">
+                          <option value="Y">Y</option>
+                          <option value="N" selected>N</option>
+                        </select>
+                      </td>
+                      <td><button type="button" class="btn-icon delete-btn" onclick="removeRow(this)">✕</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- EBS Server File Deployment & Template Registration Card -->
+            <div class="card-section" style="border: 1px solid rgba(14, 165, 233, 0.4); background: rgba(14, 165, 233, 0.05); border-radius: var(--radius-md); padding: 16px;">
+              <div class="section-title" style="color: var(--accent-secondary); display: flex; align-items: center; gap: 8px;">
+                <span>🚀</span> Live EBS Server File Upload & Deployment (التسميع الفوري في السيرفر وEBS)
+              </div>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                رفع ملفات الـ RDF مباشرة إلى مسارات السيرفر (<code style="color: var(--accent-primary);">$PER_TOP/reports/US</code> و <code style="color: var(--accent-primary);">$AU_TOP/reports/US</code>) وتسجيل قوالب الـ RTF في XML Publisher و XDO_LOBS.
+              </p>
+              
+              <div class="form-grid">
+                <!-- RDF Upload -->
+                <div class="form-group span-2" style="background: var(--bg-surface-elevated); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <label style="font-weight: 600; color: #38bdf8;">📊 1. Oracle Reports (.rdf) Server Deployment</label>
+                  <div style="display: flex; gap: 10px; align-items: center; margin-top: 6px; flex-wrap: wrap;">
+                    <input type="file" id="rdf_file_input" accept=".rdf" style="display:none" onchange="handleRdfFileChange(event)">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('rdf_file_input').click()">📁 Select Local .rdf File</button>
+                    <span id="rdf_selected_filename" style="font-size: 12px; color: var(--text-muted); flex: 1;">No file chosen (will prepare server path & executable)</span>
+                    <button type="button" class="btn btn-accent btn-sm" onclick="deployRdfToServer()" title="Upload RDF to server and register executable">🚀 Deploy RDF to Server</button>
+                  </div>
+                </div>
+
+                <!-- RTF Upload & Registration -->
+                <div class="form-group span-2" style="background: var(--bg-surface-elevated); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <label style="font-weight: 600; color: #38bdf8;">📑 2. BI Publisher Template (.rtf) Registration</label>
+                  <div style="display: flex; gap: 10px; align-items: center; margin-top: 6px; flex-wrap: wrap;">
+                    <input type="file" id="rtf_file_input" accept=".rtf" style="display:none" onchange="handleRtfFileChange(event)">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('rtf_file_input').click()">📁 Select Local .rtf File</button>
+                    <span id="rtf_selected_filename" style="font-size: 12px; color: var(--text-muted); flex: 1;">No file chosen (will use generated RTF template)</span>
+                    <button type="button" class="btn btn-accent btn-sm" onclick="deployRtfToEBS()" title="Upload and register RTF template in XDO_LOBS & XML Publisher">🚀 Deploy RTF &amp; Register in EBS</button>
+                  </div>
+                </div>
+
+                <!-- Hybrid End-to-End One-Click Pipeline -->
+                <div class="form-group span-2" style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(14, 165, 233, 0.15) 100%); padding: 16px; border-radius: var(--radius-sm); border: 1px solid #38bdf8;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <label style="font-weight: 700; color: #38bdf8; font-size: 14px;">🚀 3. Hybrid Report Automated Pipeline (بناء ونشر تقرير هايبرد كامل بنقرة واحدة)</label>
+                      <p style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 0 0;">
+                        يرفع الـ .rdf المترجم (ROS.60050) لسيرفر EBS، يسجل الـ Executable و Concurrent Program بمخرجات XML والـ Tokens، ويربط الـ RTF بـ XDO_LOBS فوراً.
+                      </p>
+                    </div>
+                    <button type="button" class="btn btn-accent" onclick="deployHybridReportToEBS()" style="box-shadow: 0 0 12px rgba(14, 165, 233, 0.5); font-weight: 600;" title="Full Hybrid Pipeline: Deploy RDF + Register CP with XML + Register RTF in XDO">
+                      ⚡ Build &amp; Deploy Hybrid Report (RDF + RTF)
+                    </button>
+                  </div>
+                  
+                  <!-- Quick Download Bar -->
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+                    <span style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center;">قوالب التطوير المحلي:</span>
+                    <button type="button" class="btn btn-download btn-xs" onclick="generateAndDownloadRdf()" title="تنزيل ملف ثنائي ROS.60050 يفتح مباشرة في Oracle Reports Builder بدون أي خطأ">
+                      📥 Download Reports Builder (.rdf)
+                    </button>
+                    <button type="button" class="btn btn-download btn-xs" onclick="generateAndDownloadRtf()" title="تنزيل قالب RTF لفتحه في Microsoft Word مع إضافة BI Publisher Desktop">
+                      📥 Download BI Publisher (.rtf)
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-xs" onclick="downloadSampleXmlOnly()" title="تنزيل ملف XML تجريبي لتحميله في Word (BI Publisher > Sample XML)">
+                      📄 Download Sample XML (.xml)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" onclick="generateReportPackage()">⚡ Generate Report Package</button>
+              <button type="button" class="btn btn-secondary" onclick="generateBipDataTemplate()">📄 Data Template XML</button>
+              <button type="button" class="btn btn-secondary" onclick="generateRtfTemplate()">📑 RTF Layout</button>
+              <button type="button" class="btn btn-outline" onclick="validateCurrentForm('report')">✓ Validate</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- MODULE 3: WORKFLOW -->
+        <div id="panel-workflow" class="module-panel">
+          <div class="panel-header">
+            <h2>Oracle Workflow Builder & Engine Generator</h2>
+            <p class="panel-desc">Generate Workflow Item Types, Processes, Notification Attributes, and PL/SQL Activity Handlers.</p>
+          </div>
+
+          <form id="form-workflow" onsubmit="event.preventDefault();">
+            <div class="card-section">
+              <div class="section-title">Workflow Definition</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="wf_item_type">Item Type (8 chars max) <span class="req">*</span></label>
+                  <input type="text" id="wf_item_type" value="XXHRWF" maxlength="8" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="wf_display_name">Item Type Display Name <span class="req">*</span></label>
+                  <input type="text" id="wf_display_name" value="XX Employee Approval Workflow">
+                </div>
+                <div class="form-group">
+                  <label for="wf_process_name">Process Name <span class="req">*</span></label>
+                  <input type="text" id="wf_process_name" value="XX_EMP_APPR_PRC" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="wf_appr_type">Approval Type</label>
+                  <select id="wf_appr_type">
+                    <option value="HIERARCHY" selected>Supervisor Hierarchy (HRMS)</option>
+                    <option value="AME">Oracle AME (Approvals Management Engine)</option>
+                    <option value="STATIC_ROLE">Static Role / Specific User</option>
+                    <option value="DYNAMIC_SQL">Dynamic SQL Query</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="wf_timeout">Approval Timeout (Hours)</label>
+                  <input type="number" id="wf_timeout" value="48" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="wf_pkg_name">Handling PL/SQL Package</label>
+                  <input type="text" id="wf_pkg_name" value="xx_hr_workflow_pkg">
+                </div>
+              </div>
+            </div>
+
+            <div class="card-section">
+              <div class="section-title">Workflow Attributes</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="wf_attr_emp_id">Transaction ID Attribute</label>
+                  <input type="text" id="wf_attr_emp_id" value="TRANSACTION_ID">
+                </div>
+                <div class="form-group">
+                  <label for="wf_attr_approver">Approver Role Attribute</label>
+                  <input type="text" id="wf_attr_approver" value="APPROVER_ROLE">
+                </div>
+                <div class="form-group span-2">
+                  <label for="wf_notif_subject">Notification Subject</label>
+                  <input type="text" id="wf_notif_subject" value="Action Required: Employee Approval Request # &TRANSACTION_ID for &EMP_NAME">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" onclick="generateWorkflowDefinitionScript()">🏗️ Register Workflow Definition (DB &amp; Process)</button>
+              <button type="button" class="btn btn-secondary" onclick="generateWorkflowPLSQL()">⚡ Generate Workflow PL/SQL Handler</button>
+              <button type="button" class="btn btn-secondary" onclick="generateWorkflowStarterScript()">🚀 Generate Launch / Starter Script</button>
+              <button type="button" class="btn btn-download" onclick="generateWorkflowFullBundle()" title="Generates a combined Definition + Launch script that prevents ORA-20002">🔗 Generate Full Bundle</button>
+              <button type="button" class="btn btn-accent" onclick="deployWorkflowDirectly()" title="Deploy Workflow via WF_LOAD in FORCE mode (Builder Compatible)">🚀 Deploy Workflow to EBS</button>
+              <button type="button" class="btn btn-outline" onclick="validateCurrentForm('workflow')">✓ Validate</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- MODULE 4: ALERT MANAGER -->
+        <div id="panel-alert" class="module-panel">
+          <div class="panel-header">
+            <h2>Oracle Alert Manager (Event & Periodic)</h2>
+            <p class="panel-desc">Generate Event-driven or Periodic Alerts with SQL exceptions and notification routing.</p>
+          </div>
+
+          <form id="form-alert" onsubmit="event.preventDefault();">
+            <div class="card-section">
+              <div class="section-title">Alert Definition</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="alr_name">Alert Name <span class="req">*</span></label>
+                  <input type="text" id="alr_name" value="XX_EMP_SALARY_CHANGE_ALERT" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="alr_appl">Application <span class="req">*</span></label>
+                  <input type="text" id="alr_appl" value="PER" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="alr_type">Alert Type <span class="req">*</span></label>
+                  <select id="alr_type" onchange="toggleAlertEventFields()">
+                    <option value="E" selected>Event Alert (Table Insert / Update / Delete)</option>
+                    <option value="P">Periodic Alert (Scheduled Interval / Cron)</option>
+                  </select>
+                </div>
+                <div class="form-group" id="alr_table_group">
+                  <label for="alr_table">Triggering Table Name <span class="req">*</span></label>
+                  <input type="text" id="alr_table" value="PER_ALL_ASSIGNMENTS_F" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="alr_recipient">Recipient (User / Email / Role)</label>
+                  <input type="text" id="alr_recipient" value="HR_ADMIN_ROLE">
+                </div>
+                <div class="form-group">
+                  <label for="alr_subject">Email Subject</label>
+                  <input type="text" id="alr_subject" value="ALERT: Employee Assignment Changed for &FULL_NAME">
+                </div>
+              </div>
+            </div>
+
+            <div class="card-section">
+              <div class="section-title">Select SQL Statement (Exception Trigger)</div>
+              <div class="form-group">
+                <textarea id="alr_sql" rows="6" class="code-textarea">SELECT 
+    p.full_name,
+    p.employee_number,
+    org.name,
+    :ROWID
+INTO 
+    &FULL_NAME,
+    &EMP_NO,
+    &DEPT_NAME,
+    &ROWID
+FROM 
+    apps.per_all_people_f p,
+    apps.per_all_assignments_f a,
+    apps.hr_all_organization_units org
+WHERE 
+    p.person_id = a.person_id
+    AND a.organization_id = org.organization_id
+    AND a.rowid = :ROWID</textarea>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" onclick="generateAlertScripts()">⚡ Generate Alert Definition SQL</button>
+              <button type="button" class="btn btn-secondary" onclick="generateAlertMessageBody()">✉️ Generate Notification Template</button>
+              <button type="button" class="btn btn-accent" onclick="deployAlertDirectly()" title="Register and Enable Alert in ALR_ALERTS">🚀 Deploy &amp; Enable Alert in EBS</button>
+              <button type="button" class="btn btn-outline" onclick="validateCurrentForm('alert')">✓ Validate</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- MODULE 5: OAF STUDIO -->
+        <div id="panel-oaf" class="module-panel">
+          <div class="panel-header">
+            <h2>OAF (Oracle Application Framework) Studio</h2>
+            <p class="panel-desc">Generate Controller Java code, BC4J components (AM/VO/EO), XMLImporter commands, and OACore deployment.</p>
+          </div>
+
+          <form id="form-oaf" onsubmit="event.preventDefault();">
+            <div class="card-section">
+              <div class="section-title">Package & Hierarchy</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="oaf_appl">Application Short Name <span class="req">*</span></label>
+                  <input type="text" id="oaf_appl" value="XXCUS" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group span-2">
+                  <label for="oaf_pkg">Base Package Path <span class="req">*</span></label>
+                  <input type="text" id="oaf_pkg" value="xxcus.oracle.apps.per.employee.webui">
+                </div>
+                <div class="form-group">
+                  <label for="oaf_page_name">Page Name (.xml) <span class="req">*</span></label>
+                  <input type="text" id="oaf_page_name" value="EmpDetailsPG">
+                </div>
+                <div class="form-group">
+                  <label for="oaf_controller">Controller Name (.java)</label>
+                  <input type="text" id="oaf_controller" value="EmpDetailsCO">
+                </div>
+                <div class="form-group">
+                  <label for="oaf_am">Application Module (AM)</label>
+                  <input type="text" id="oaf_am" value="EmpDetailsAM">
+                </div>
+                <div class="form-group">
+                  <label for="oaf_vo">View Object (VO)</label>
+                  <input type="text" id="oaf_vo" value="EmpDetailsVO">
+                </div>
+                <div class="form-group">
+                  <label for="oaf_eo">Entity Object (EO)</label>
+                  <input type="text" id="oaf_eo" value="EmpDetailsEO">
+                </div>
+              </div>
+            </div>
+
+            <div class="card-section">
+              <div class="section-title">Controller Behavior & Personalization</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="oaf_action">Controller Main Action</label>
+                  <select id="oaf_action">
+                    <option value="QUERY" selected>Execute Query on processRequest</option>
+                    <option value="SUBMIT">Handle Form Submission in processFormRequest</option>
+                    <option value="LOV">Handle Dynamic LOV / Picklist</option>
+                    <option value="EXPORT">Handle Export to Excel</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="oaf_pers_level">Personalization Level</label>
+                  <select id="oaf_pers_level">
+                    <option value="SITE" selected>Site Level (Global)</option>
+                    <option value="RESPONSIBILITY">Responsibility Level</option>
+                    <option value="ORGANIZATION">Organization Level</option>
+                    <option value="FUNCTION">Function Level</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" onclick="generateOAFController()">⚡ Generate Controller (Java)</button>
+              <button type="button" class="btn btn-secondary" onclick="generateOAFPageXML()">📄 Generate Page XML (MDS)</button>
+              <button type="button" class="btn btn-secondary" onclick="generateOAFXMLImporter()">📥 Generate XMLImporter Scripts</button>
+              <button type="button" class="btn btn-accent" onclick="deployOafPageDirectly()" title="Import Page XML into MDS via XMLImporter">🚀 Deploy Page XML to MDS</button>
+              <button type="button" class="btn btn-secondary" onclick="generateOACoreBounceSteps()">🔄 Generate OACore Bounce Steps</button>
+              <button type="button" class="btn btn-outline" onclick="validateCurrentForm('oaf')">✓ Validate</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- MODULE 6: SQL & PL/SQL -->
+        <div id="panel-sql" class="module-panel">
+          <div class="panel-header">
+            <h2>SQL & PL/SQL Generator & API Invoker</h2>
+            <p class="panel-desc">Generate certified Oracle EBS packages, autonomous error logging, and standard API wrappers.</p>
+          </div>
+
+          <form id="form-sql" onsubmit="event.preventDefault();">
+            <div class="card-section">
+              <div class="section-title">Object Specification</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="sql_obj_type">Object Type <span class="req">*</span></label>
+                  <select id="sql_obj_type" onchange="toggleSqlFields()">
+                    <option value="PACKAGE" selected>PL/SQL Package (Spec & Body)</option>
+                    <option value="PROCEDURE">Standalone Stored Procedure</option>
+                    <option value="FUNCTION">Stored Function</option>
+                    <option value="TRIGGER">Database Trigger</option>
+                    <option value="API_WRAPPER">Oracle EBS Public API Wrapper</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="sql_pkg_name">Package / Object Name <span class="req">*</span></label>
+                  <input type="text" id="sql_pkg_name" value="XX_HR_EMPLOYEE_PKG" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group">
+                  <label for="sql_api_select">Oracle Public API (if applicable)</label>
+                  <select id="sql_api_select">
+                    <option value="HR_EMPLOYEE_API.CREATE_US_EMPLOYEE">HR_EMPLOYEE_API.CREATE_US_EMPLOYEE</option>
+                    <option value="HR_PERSON_ABSENCE_API.CREATE_PERSON_ABSENCE" selected>HR_PERSON_ABSENCE_API.CREATE_PERSON_ABSENCE</option>
+                    <option value="FND_USER_PKG.CREATEUSER">FND_USER_PKG.CREATEUSER</option>
+                    <option value="AP_INVOICES_INTERFACE">AP_INVOICE_LINES_PKG</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="sql_schema">Target Schema</label>
+                  <input type="text" id="sql_schema" value="APPS" oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div class="form-group span-2">
+                  <label for="sql_requirement">Business Requirement & Logic</label>
+                  <textarea id="sql_requirement" rows="4" placeholder="Describe the validation, calculations, cursor processing, or API calls needed...">Create an autonomous wrapper to record employee leave absences with automatic validation, transaction rollback on failure, and FND logging.</textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" onclick="generatePLSQLCode()">⚡ Generate Package Spec & Body</button>
+              <button type="button" class="btn btn-secondary" onclick="generateApiInvokerCode()">🔌 Generate Public API Invoker</button>
+              <button type="button" class="btn btn-accent" onclick="deploySqlDirectly()" title="Execute PL/SQL script in EBS APPS schema">🚀 Execute in EBS APPS Schema</button>
+              <button type="button" class="btn btn-outline" onclick="validateCurrentForm('sql')">✓ Validate</button>
+            </div>
+          </form>
+        </div>
+
+      </section>
+
+      <!-- ==================== RIGHT PANE: GENERATED OUTPUT STUDIO ==================== -->
+      <section class="panel output-panel">
+        <div class="output-header">
+          <div class="output-title-group">
+            <h3>Generated Output Studio</h3>
+            <span class="file-tag" id="currentOutputFile">XX_REGISTRATION.sql</span>
+          </div>
+          
+          <div class="output-actions">
+            <button class="btn btn-accent btn-sm" id="deployEbsBtn" onclick="deployCurrentScriptToEBS()">🚀 Apply to EBS (تطبيق في بيئة EBS)</button>
+            <button class="btn btn-secondary btn-sm" onclick="copyOutputToClipboard()">📋 Copy Code</button>
+            <button class="btn btn-primary btn-sm" onclick="downloadOutputFile()">💾 Download File</button>
+          </div>
+        </div>
+
+        <!-- Output Tabs -->
+        <div class="output-subtabs">
+          <button class="subtab-btn active" onclick="switchOutputTab('code')">Code / Script</button>
+          <button class="subtab-btn" onclick="switchOutputTab('deploy')">Deployment Steps</button>
+          <button class="subtab-btn" onclick="switchOutputTab('rollback')">Rollback Script</button>
+          <button class="subtab-btn" onclick="switchOutputTab('doc')">Technical Doc (MD070)</button>
+        </div>
+
+        <!-- Code Display Container -->
+        <div class="code-container">
+          <pre id="outputCodeArea" class="code-block"><code>-- Click any of the Generate buttons on the left panel to produce certified Oracle EBS R12 code.</code></pre>
+        </div>
+
+        <!-- Technical Metadata Footer -->
+        <div class="output-footer">
+          <span id="outputStats">Lines: 0 | Size: 0 KB | Certified for Oracle EBS R12</span>
+          <span class="status-verified">🛡️ Zero Hardcoded Secrets • Public API Standard</span>
+        </div>
+      </section>
+      
+    </div>
+  </main>
+
+  <!-- Live EBS Deployment Modal / Execution Console -->
+  <div id="deployModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeDeployModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">🚀</span>
+          <h3>Oracle EBS Live Deployment Console</h3>
+        </div>
+        <button type="button" class="btn-icon" onclick="closeDeployModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="deploy-target-info">
+          <div><strong>Target Instance:</strong> <span id="deployModalInstance">HRVIS (10.100.100.104)</span></div>
+          <div><strong>Environment:</strong> <span id="deployModalEnv" class="badge">DEV</span></div>
+          <div><strong>Object:</strong> <span id="deployModalObject">XX_EMP_REPORT</span></div>
+        </div>
+        <div class="deploy-progress-container" id="deployProgressBox">
+          <div class="spinner-inline" id="deploySpinner"></div>
+          <span id="deployProgressText">Connecting to EBS instance and applying script...</span>
+        </div>
+        <div class="deploy-result-box">
+          <label>Database Output & Execution Log:</label>
+          <pre id="deployOutputLog" class="code-block">Waiting for execution...</pre>
+        </div>
+        <div id="deployVerifyBox" class="verify-box hidden">
+          <label>Data Dictionary Verification:</label>
+          <pre id="deployVerifyLog" class="code-block"></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeDeployModal()">Close</button>
+        <button type="button" class="btn btn-primary" id="reDeployBtn" onclick="deployCurrentScriptToEBS(true)">↻ Re-run Deployment</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260915b"></script>
+</body>
+</html>
