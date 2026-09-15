@@ -998,9 +998,12 @@ ORDER BY papf.full_name"></textarea>
               <button class="btn btn-sm btn-outline" onclick="generateWizardXML()">⚙️ Auto-Generate XML</button>
             </div>
             <div>
-              <label>RTF Layout Specification</label>
-              <textarea id="wz-rtf-spec" rows="18" class="form-input code-font" placeholder="RTF spec will appear here after generation" readonly></textarea>
-              <button class="btn btn-sm btn-outline" onclick="generateWizardRTFSpec()">⚙️ Generate RTF Spec</button>
+              <label>RTF Layout Specification &amp; Formulas</label>
+              <textarea id="wz-rtf-spec" rows="18" class="form-input code-font" placeholder="RTF spec and formulas will appear here after generation" readonly></textarea>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <button class="btn btn-sm btn-outline" onclick="generateWizardRTFSpec()">⚙️ Generate RTF Spec</button>
+                <button class="btn btn-sm btn-primary" onclick="downloadWizardRTF()">📥 Download .RTF File</button>
+              </div>
             </div>
           </div>
           <div class="wz-nav">
@@ -1351,14 +1354,21 @@ ORDER BY papf.full_name"></textarea>
     document.getElementById('wz-sec-' + num).classList.add('active');
     document.getElementById('wz-step-' + num).classList.add('active');
 
-    if (num === 6 && wizardCurrentArch === 'RDF') {
-      const xml = document.getElementById('wz-xml-template');
-      const rtf = document.getElementById('wz-rtf-spec');
-      if (!xml.value || xml.value.includes("Click 'Generate'")) {
-        xml.value = `<!-- ========================================================= -->\n<!-- Architecture: Oracle Reports RDF (Pure Binary RDF)        -->\n<!-- ========================================================= -->\n<!-- XML Data Template is N/A for pure RDF reports.            -->\n<!-- Report layout is compiled directly into the binary .rdf.  -->\n<!-- You may proceed directly: click 'Next: Validate'.        -->`;
-      }
-      if (!rtf.value || rtf.value.includes("RTF spec will appear")) {
-        rtf.value = `/* ========================================================= */\n/* Architecture: Oracle Reports RDF (Pure Binary RDF)        */\n/* ========================================================= */\n/* RTF Layout spec is N/A. Layout is embedded in .rdf file.  */`;
+    if (num === 6) {
+      if (wizardCurrentArch === 'RDF') {
+        const xml = document.getElementById('wz-xml-template');
+        const rtf = document.getElementById('wz-rtf-spec');
+        if (!xml.value || xml.value.includes("Click 'Generate'")) {
+          xml.value = `<!-- ========================================================= -->\n<!-- Architecture: Oracle Reports RDF (Pure Binary RDF)        -->\n<!-- ========================================================= -->\n<!-- XML Data Template is N/A for pure RDF reports.            -->\n<!-- Report layout is compiled directly into the binary .rdf.  -->\n<!-- You may proceed directly: click 'Next: Validate'.        -->`;
+        }
+        if (!rtf.value || rtf.value.includes("RTF spec will appear")) {
+          rtf.value = `/* ========================================================= */\n/* Architecture: Oracle Reports RDF (Pure Binary RDF)        */\n/* ========================================================= */\n/* RTF Layout spec is N/A. Layout is embedded in .rdf file.  */`;
+        }
+      } else {
+        const xml = document.getElementById('wz-xml-template');
+        if (!xml.value || xml.value.includes("Click 'Generate'") || xml.value.includes("Architecture: Oracle Reports RDF")) {
+          generateWizardXML();
+        }
       }
     }
   }
@@ -1394,14 +1404,18 @@ ORDER BY papf.full_name"></textarea>
     const rawSn = (document.getElementById('wz-short-name').value || 'XX_REPORT').trim();
     const cleanSn = rawSn.replace(/[^A-Za-z0-9_]/g, '_').replace(/_+/g, '_').toUpperCase();
 
+    const xmlField = document.getElementById('wz-xml-template');
+    const xmlVal = xmlField ? xmlField.value.trim() : '';
+
     return {
       report_name: document.getElementById('wz-report-name').value || 'Custom Report',
       short_name: cleanSn,
-      application_short_name: document.getElementById('wz-app-short').value || 'XX',
+      application_short_name: document.getElementById('wz-app-short').value || 'PER',
       architecture: wizardCurrentArch,
       sql_query: document.getElementById('wz-sql-query').value,
       parameters: params,
       value_sets: vsets,
+      xml_data_template: xmlVal,
       output_format: document.getElementById('wz-output-format').value,
       description: document.getElementById('wz-description').value,
       business_purpose: document.getElementById('wz-business-purpose').value,
@@ -1513,8 +1527,10 @@ ORDER BY papf.full_name"></textarea>
   // ─── Generate XML Data Template ────────────────────────────────────────
   async function generateWizardXML() {
     const xmlArea = document.getElementById('wz-xml-template');
+    const rtfArea = document.getElementById('wz-rtf-spec');
     if (wizardCurrentArch === 'RDF') {
       xmlArea.value = `<!-- ========================================================= -->\n<!-- Architecture: Oracle Reports RDF (Pure Binary RDF)        -->\n<!-- ========================================================= -->\n<!-- XML Data Template is N/A for pure RDF reports.            -->\n<!-- Report layout is compiled directly into the binary .rdf.  -->\n<!-- You may proceed directly: click 'Next: Validate'.        -->`;
+      rtfArea.value = `/* ========================================================= */\n/* Architecture: Oracle Reports RDF (Pure Binary RDF)        */\n/* ========================================================= */\n/* RTF Layout spec is N/A. Layout is embedded in .rdf file.  */`;
       return;
     }
     const payload = buildWizardPayload();
@@ -1527,7 +1543,7 @@ ORDER BY papf.full_name"></textarea>
       const data = await res.json();
       if (data.report_design) {
         wizardDesign = data.report_design;
-        // Generate package to get XML
+        // Generate package to get XML and RTF spec
         const pkgRes = await fetch('/api/report/package', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1536,6 +1552,10 @@ ORDER BY papf.full_name"></textarea>
         const pkg = await pkgRes.json();
         if (pkg.xml_data_template) {
           xmlArea.value = pkg.xml_data_template;
+        }
+        const rtfFile = pkg.files && Object.keys(pkg.files).find(k => k.includes('/rtf/') && k.endsWith('.txt'));
+        if (rtfFile && rtfArea) {
+          rtfArea.value = pkg.files[rtfFile];
         }
       }
     } catch(e) { console.error(e); }
@@ -1555,8 +1575,30 @@ ORDER BY papf.full_name"></textarea>
       body: JSON.stringify({ report_design: wizardDesign })
     });
     const pkg = await pkgRes.json();
-    const rtfFile = pkg.files && Object.keys(pkg.files).find(k => k.includes('/rtf/'));
+    const rtfFile = pkg.files && Object.keys(pkg.files).find(k => k.includes('/rtf/') && k.endsWith('.txt'));
     if (rtfFile) rtfArea.value = pkg.files[rtfFile];
+  }
+
+  async function downloadWizardRTF() {
+    const payload = buildWizardPayload();
+    const sn = payload.short_name || 'XX_REPORT';
+    try {
+      const res = await fetch('/api/download_rtf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: sn, sql: payload.sql_query, app: payload.application_short_name })
+      });
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${sn}.rtf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch(e) {
+      alert('Failed to download RTF: ' + e.message);
+    }
   }
 
   // ─── Validation Checklist ──────────────────────────────────────────────

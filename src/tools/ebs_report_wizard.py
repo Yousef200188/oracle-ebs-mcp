@@ -67,6 +67,7 @@ def design_ebs_report_tool(
     rtf_template_name: str = "",
     rdf_file_name: str = "",
     data_definition_code: str = "",
+    xml_data_template: str = "",
     appl_top: str = "$APPL_TOP",
     security_profile: str = "",
 ) -> Dict[str, Any]:
@@ -138,6 +139,9 @@ def design_ebs_report_tool(
             "HYBRID": "Oracle Reports",
         }[arch]
 
+    if not request_group:
+        request_group = "HR Reports and Processes" if application_short_name.upper() in ("PER", "PAY", "BEN") else "System Administrator Reports"
+
     params = parameters or []
     vsets = value_sets or []
 
@@ -181,6 +185,16 @@ def design_ebs_report_tool(
         "_sql_validation": sql_result,
         "_param_validation": param_result,
     }
+
+    # Ensure XML Data Template & RTF Spec are present for BIP/HYBRID architecture
+    if arch in ("BIP", "HYBRID"):
+        if xml_data_template and "<dataTemplate" in xml_data_template:
+            report_design["xml_data_template"] = xml_data_template
+        else:
+            report_design["xml_data_template"] = _gen_xml_data_template(report_design)
+        report_design["rtf_spec"] = _gen_rtf_layout_spec(report_design)
+    else:
+        report_design["xml_data_template"] = ""
 
     # Run 20-point checklist
     checklist = run_full_validation_checklist(report_design)
@@ -1192,6 +1206,20 @@ def generate_report_package_tool(report_design: Dict[str, Any]) -> Dict[str, Any
         rd.get("application_short_name", "XX"),
     )
 
+    from ..ebs_executor import generate_rtf_from_columns_py
+    rtf_content = ""
+    if arch in ("BIP", "HYBRID"):
+        cols = rd.get("sql_aliases") or ["EMPLOYEE_NUMBER", "FULL_NAME", "ASSIGNMENT_NUMBER"]
+        p_names = [p.get("name", "") for p in rd.get("parameters", []) if p.get("name")]
+        rtf_content = generate_rtf_from_columns_py(
+            rep_name=rd.get("report_name", sn),
+            rep_short=sn,
+            app_short=rd.get("application_short_name", "PER"),
+            columns=cols,
+            params=p_names,
+            group_name=f"G_{sn}",
+        )
+
     files = {
         f"{sn}/sql/01_value_sets.sql": vs_result.get("deployment_sql", "-- No value sets defined\n"),
         f"{sn}/sql/02_package.sql": f"-- PL/SQL Package: {rd.get('plsql_package', 'N/A')}\n-- Add package body here if required.\n",
@@ -1204,6 +1232,7 @@ def generate_report_package_tool(report_design: Dict[str, Any]) -> Dict[str, Any
         f"{sn}/sql/09_validation.sql": _gen_validation_sql(rd),
         f"{sn}/xml/{sn}_data_template.xml": rd.get("xml_data_template", "") if arch in ("BIP", "HYBRID") else "",
         f"{sn}/xdo/{sn}_xdo.xml": rd.get("xml_data_template", "") if arch in ("BIP", "HYBRID") else "",
+        f"{sn}/rtf/{sn}.rtf": rtf_content,
         f"{sn}/rtf/{sn}_layout_spec.txt": _gen_rtf_layout_spec(rd) if arch in ("BIP", "HYBRID") else "",
         f"{sn}/deployment/deploy.sh": _gen_deploy_sh(rd),
         f"{sn}/deployment/rollback.sh": "#!/bin/bash\n# Run rollback.sql via sqlplus\nsqlplus apps/$ORACLE_PASSWORD@$JDBC_CONNECTION @../sql/09_validation.sql\n",

@@ -814,8 +814,9 @@ def compile_dynamic_rdf_from_sql(sql_text: str, rep_short: str, rep_name: str, p
     }
 
 
-def generate_rtf_from_columns_py(rep_name: str, rep_short: str, app_short: str, columns: list, params: list = None) -> str:
-    """Builds BI Publisher RTF table layout matching dynamic SQL columns."""
+def generate_rtf_from_columns_py(rep_name: str, rep_short: str, app_short: str, columns: list, params: list = None, group_name: str = "") -> str:
+    """Builds genuine BI Publisher RTF table layout matching dynamic SQL columns with standard format formulas."""
+    grp = group_name or f"G_{rep_short}"
     total_w = 10080
     n = max(1, len(columns))
     col_w = total_w // n
@@ -833,13 +834,50 @@ def generate_rtf_from_columns_py(rep_name: str, rep_short: str, app_short: str, 
         f"\\clbrdrt\\brdrs\\brdrw10\\brdrcf6\\clbrdrl\\brdrs\\brdrw10\\brdrcf6\\clbrdrb\\brdrs\\brdrw10\\brdrcf6\\clbrdrr\\brdrs\\brdrw10\\brdrcf6\\cellx{cx}\n"
         for cx in cellx_list
     ])
-    data_cells = "".join([
-        f"\\pard\\intbl\\qc\\cf1\\b0\\fs17 <?for-each@row:G_MAIN?><?{c}?>\\cell " if i == 0
-        else f"\\pard\\intbl\\ql\\cf1\\b0\\fs17 <?{c}?>\\cell "
-        for i, c in enumerate(columns)
-    ])
+
+    data_cells_list = []
+    num_cols = []
+    for i, c in enumerate(columns):
+        cu = c.upper()
+        if any(k in cu for k in ["_DATE", "DATE", "_DT", "DT_"]):
+            align = "\\qc"
+            val_tag = f"<?format-date:{c};'DD-MON-YYYY'?>"
+        elif any(k in cu for k in ["SALARY", "AMOUNT", "AMT", "RATE", "BALANCE", "PRICE", "COST", "TOTAL", "BONUS"]):
+            align = "\\qr"
+            val_tag = f"<?format-number:{c};'#,##0.00'?>"
+            num_cols.append(c)
+        elif any(k in cu for k in ["_ID", "ID", "NUM", "NUMBER", "CODE", "SEQ", "FLAG", "STATUS"]):
+            align = "\\qc"
+            val_tag = f"<?{c}?>"
+        else:
+            align = "\\ql"
+            val_tag = f"<?{c}?>"
+
+        if i == 0:
+            data_cells_list.append(f"\\pard\\intbl{align}\\cf1\\b0\\fs17 <?for-each@row:{grp}?>{val_tag}\\cell ")
+        elif i == len(columns) - 1:
+            data_cells_list.append(f"\\pard\\intbl{align}\\cf1\\b0\\fs17 {val_tag}<?end for-each?>\\cell ")
+        else:
+            data_cells_list.append(f"\\pard\\intbl{align}\\cf1\\b0\\fs17 {val_tag}\\cell ")
+
+    data_cells = "".join(data_cells_list)
     param_str = "\\tab\\tab ".join([f"\\cf5 {p}: \\cf1 <?{p}?>" for p in (params or [])]) if params else "\\cf5 All Records"
     first_col = columns[0] if columns else "RECORD_ID"
+
+    if num_cols:
+        sum_col = num_cols[0]
+        summary_cells = f"""\\trowd\\trgaph108\\trleft-108
+\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{max(1000, total_w - 4000)}
+\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{max(2000, total_w - 2000)}
+\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{total_w}
+\\pard\\intbl\\qr\\cf2\\b\\fs17 Summary:\\cell\\qc\\cf2 Total Count: <?count({first_col})?>\\cell\\qr\\cf2 Sum({sum_col}): <?format-number:sum({sum_col});'#,##0.00'?>\\cell\\row
+"""
+    else:
+        summary_cells = f"""\\trowd\\trgaph108\\trleft-108
+\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{max(1000, total_w - 2800)}
+\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{total_w}
+\\pard\\intbl\\qr\\cf2\\b\\fs17 Total Records Count:\\cell\\qc\\cf2 <?count({first_col})?>\\cell\\row
+"""
 
     return f"""{{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033{{\\fonttbl{{\\f0\\fswiss\\fcharset0 Arial;}}{{\\f1\\fswiss\\fcharset0 Calibri;}}{{\\f2\\fnil\\fcharset0 Tahoma;}}}}
 {{\\colortbl ;\\red15\\green23\\blue42;\\red30\\green58\\blue138;\\red238\\green242\\blue255;\\red255\\green255\\blue255;\\red100\\green116\\blue139;\\red226\\green232\\blue240;\\red16\\green185\\blue129;}}
@@ -859,10 +897,7 @@ Application: {app_short}  |  Report Code: {rep_short}  |  Dynamic BI Publisher T
 \\trowd\\trgaph108\\trleft-108
 {cellx_data}
 {data_cells}\\row
-\\trowd\\trgaph108\\trleft-108
-\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{max(1000, total_w - 2800)}
-\\clbrdrt\\brdrs\\brdrw15\\brdrcf2\\clbrdrl\\brdrs\\brdrw15\\brdrcf2\\clbrdrb\\brdrs\\brdrw15\\brdrcf2\\clbrdrr\\brdrs\\brdrw15\\brdrcf2\\clcbpat3\\cellx{total_w}
-\\pard\\intbl\\qr\\cf2\\b\\fs17 Total Records Count:\\cell\\qc\\cf2 <?count({first_col})?>\\cell\\row
+{summary_cells}
 \\pard\\par
 \\pard\\ql\\cf5\\fs16 Confidential - Oracle EBS Generated\\qr Page <?page_number?> of <?total_pages?>\\par
 }}"""
