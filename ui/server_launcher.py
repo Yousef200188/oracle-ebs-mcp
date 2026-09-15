@@ -83,34 +83,41 @@ class EBSRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path == "/api/deploy":
-            self.handle_deploy()
-        elif parsed.path == "/api/verify":
-            self.handle_verify()
-        elif parsed.path == "/api/upload":
-            self.handle_upload()
-        elif parsed.path == "/api/download_rdf":
-            self.handle_download_rdf_post()
-        elif parsed.path == "/api/download_rtf":
-            self.handle_download_rtf_post()
-        elif parsed.path == "/api/download_sample_xml":
-            self.handle_download_sample_xml_post()
-        elif parsed.path == "/api/report/design":
-            self.handle_report_design()
-        elif parsed.path == "/api/report/validate":
-            self.handle_report_validate()
-        elif parsed.path == "/api/report/package":
-            self.handle_report_package()
-        elif parsed.path == "/api/report/deploy":
-            self.handle_report_deploy()
-        elif parsed.path == "/api/report/rollback":
-            self.handle_report_rollback()
-        elif parsed.path == "/api/report/test":
-            self.handle_report_test()
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b'{"error":"Endpoint not found"}')
+        try:
+            if parsed.path == "/api/deploy":
+                self.handle_deploy()
+            elif parsed.path == "/api/verify":
+                self.handle_verify()
+            elif parsed.path == "/api/upload":
+                self.handle_upload()
+            elif parsed.path == "/api/sql":
+                self.handle_raw_sql()
+            elif parsed.path == "/api/download_rdf":
+                self.handle_download_rdf_post()
+            elif parsed.path == "/api/download_rtf":
+                self.handle_download_rtf_post()
+            elif parsed.path == "/api/download_sample_xml":
+                self.handle_download_sample_xml_post()
+            elif parsed.path == "/api/report/design":
+                self.handle_report_design()
+            elif parsed.path == "/api/report/validate":
+                self.handle_report_validate()
+            elif parsed.path == "/api/report/package":
+                self.handle_report_package()
+            elif parsed.path == "/api/report/deploy":
+                self.handle_report_deploy()
+            elif parsed.path == "/api/report/rollback":
+                self.handle_report_rollback()
+            elif parsed.path == "/api/report/test":
+                self.handle_report_test()
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b'{"error":"Endpoint not found"}')
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "error": str(e)}, status_code=500)
 
     # ─── Handlers ───────────────────────────────────────────────────────────
 
@@ -497,6 +504,111 @@ class EBSRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_json({"success": False, "error": str(e)}, 500)
 
+    # ─── Report Wizard Handlers ──────────────────────────────────────────────
+
+    def handle_report_design(self):
+        """POST /api/report/design — Build complete report design object."""
+        from src.tools.ebs_report_wizard import design_ebs_report_tool
+        print("[API] /api/report/design")
+        try:
+            body = self._read_json_body()
+            result = design_ebs_report_tool(**body)
+            self.send_json(result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
+
+    def handle_report_validate(self):
+        """POST /api/report/validate — Run 20-point validation checklist."""
+        from src.tools.ebs_report_wizard import validate_report_design_tool
+        print("[API] /api/report/validate")
+        try:
+            body = self._read_json_body()
+            result = validate_report_design_tool(body.get("report_design", body))
+            self.send_json(result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
+
+    def handle_report_package(self):
+        """POST /api/report/package — Generate full artifact ZIP (returns base64 or direct download)."""
+        from src.tools.ebs_report_wizard import generate_report_package_tool
+        print("[API] /api/report/package")
+        try:
+            body = self._read_json_body()
+            rd = body.get("report_design", body)
+            result = generate_report_package_tool(rd)
+
+            # If client wants direct download, send as application/zip
+            if body.get("download"):
+                import base64 as _b64
+                zip_bytes = _b64.b64decode(result["zip_base64"])
+                sn = rd.get("short_name", "XX_REPORT")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f'attachment; filename="{sn}_package.zip"')
+                self.send_header("Content-Length", str(len(zip_bytes)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(zip_bytes)
+            else:
+                self.send_json(result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
+
+    def handle_report_deploy(self):
+        """POST /api/report/deploy — Apply report to live EBS database."""
+        from src.tools.ebs_report_wizard import apply_report_to_ebs_tool
+        print("[API] /api/report/deploy")
+        try:
+            body = self._read_json_body()
+            rd = body.get("report_design", body)
+            confirmed = body.get("confirmed", False)
+            environment = body.get("environment", "DEV")
+            result = apply_report_to_ebs_tool(rd, confirmed=confirmed, environment=environment)
+            self.send_json(result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
+
+    def handle_report_rollback(self):
+        """POST /api/report/rollback — Rollback a deployed report."""
+        from src.tools.ebs_report_wizard import rollback_report_tool
+        print("[API] /api/report/rollback")
+        try:
+            body = self._read_json_body()
+            rd = body.get("report_design", body)
+            confirmed = body.get("confirmed", False)
+            result = rollback_report_tool(rd, confirmed=confirmed)
+            self.send_json(result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
+
+    def handle_report_test(self):
+        """POST /api/report/test — Submit a test concurrent request and poll result."""
+        from src.tools.ebs_report_wizard import test_report_request_tool
+        print("[API] /api/report/test")
+        try:
+            body = self._read_json_body()
+            result = test_report_request_tool(
+                concurrent_program_short_name=body.get("short_name", ""),
+                application_short_name=body.get("application_short_name", "PER"),
+                parameters=body.get("parameters", []),
+                wait_seconds=body.get("wait_seconds", 120),
+            )
+            self.send_json(result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
+
     # ─── Helpers ────────────────────────────────────────────────────────────
 
     def _read_json_body(self) -> dict:
@@ -511,7 +623,9 @@ class EBSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def send_json(self, data: dict, status_code: int = 200):
+    def send_json(self, data: dict, status_code: int = 200, code: int = None):
+        if code is not None:
+            status_code = code
         body = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type",   "application/json; charset=utf-8")
@@ -573,118 +687,6 @@ Press Ctrl+C to stop.
         except KeyboardInterrupt:
             print("\n[SERVER] Shutting down...")
             httpd.shutdown()
-
-    # ─── Report Wizard Handlers ──────────────────────────────────────────────
-
-    def _read_json_body(self):
-        """Read and parse a JSON POST body."""
-        length = int(self.headers.get('Content-Length', 0))
-        raw = self.rfile.read(length) if length else b'{}'
-        return json.loads(raw.decode('utf-8'))
-
-    def handle_report_design(self):
-        """POST /api/report/design — Build complete report design object."""
-        from src.tools.ebs_report_wizard import design_ebs_report_tool
-        print("[API] /api/report/design")
-        try:
-            body = self._read_json_body()
-            result = design_ebs_report_tool(**body)
-            self.send_json(result)
-        except Exception as e:
-            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
-
-    def handle_report_validate(self):
-        """POST /api/report/validate — Run 20-point validation checklist."""
-        from src.tools.ebs_report_wizard import validate_report_design_tool
-        print("[API] /api/report/validate")
-        try:
-            body = self._read_json_body()
-            result = validate_report_design_tool(body.get("report_design", body))
-            self.send_json(result)
-        except Exception as e:
-            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
-
-    def handle_report_package(self):
-        """POST /api/report/package — Generate full artifact ZIP (returns base64 or direct download)."""
-        from src.tools.ebs_report_wizard import generate_report_package_tool
-        print("[API] /api/report/package")
-        try:
-            body = self._read_json_body()
-            rd = body.get("report_design", body)
-            result = generate_report_package_tool(rd)
-
-            # If client wants direct download, send as application/zip
-            if body.get("download"):
-                import base64 as _b64
-                zip_bytes = _b64.b64decode(result["zip_base64"])
-                sn = rd.get("short_name", "XX_REPORT")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/zip")
-                self.send_header("Content-Disposition", f'attachment; filename="{sn}_package.zip"')
-                self.send_header("Content-Length", str(len(zip_bytes)))
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(zip_bytes)
-            else:
-                self.send_json(result)
-        except Exception as e:
-            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
-
-    def handle_report_deploy(self):
-        """POST /api/report/deploy — Apply report to live EBS database."""
-        from src.tools.ebs_report_wizard import apply_report_to_ebs_tool
-        print("[API] /api/report/deploy")
-        try:
-            body = self._read_json_body()
-            rd = body.get("report_design", body)
-            confirmed = body.get("confirmed", False)
-            environment = body.get("environment", "DEV")
-            result = apply_report_to_ebs_tool(rd, confirmed=confirmed, environment=environment)
-            self.send_json(result)
-        except Exception as e:
-            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
-
-    def handle_report_rollback(self):
-        """POST /api/report/rollback — Rollback a deployed report."""
-        from src.tools.ebs_report_wizard import rollback_report_tool
-        print("[API] /api/report/rollback")
-        try:
-            body = self._read_json_body()
-            rd = body.get("report_design", body)
-            confirmed = body.get("confirmed", False)
-            result = rollback_report_tool(rd, confirmed=confirmed)
-            self.send_json(result)
-        except Exception as e:
-            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
-
-    def handle_report_test(self):
-        """POST /api/report/test — Submit a test concurrent request and poll result."""
-        from src.tools.ebs_report_wizard import test_report_request_tool
-        print("[API] /api/report/test")
-        try:
-            body = self._read_json_body()
-            result = test_report_request_tool(
-                concurrent_program_short_name=body.get("short_name", ""),
-                application_short_name=body.get("application_short_name", "PER"),
-                parameters=body.get("parameters", []),
-                wait_seconds=body.get("wait_seconds", 120),
-            )
-            self.send_json(result)
-        except Exception as e:
-            self.send_json({"status": "error", "message": str(e)[:500]}, code=500)
-
-    def send_json(self, data, code=200):
-        """Helper: already defined above; re-defined here for clarity in new handlers."""
-        # defer to the existing send_json already on the class
-        body = json.dumps(data, ensure_ascii=False, default=str).encode('utf-8')
-        self.send_response(code)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.send_header('Content-Length', str(len(body)))
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(body)
-
-
 
 if __name__ == "__main__":
     open_b = "--no-browser" not in sys.argv
