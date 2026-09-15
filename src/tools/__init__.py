@@ -1,6 +1,7 @@
 """
 Tools package for Oracle EBS Technical MCP Server.
-Exports all concurrent, BIP, Workflow, Security, Diagnostics, and Personalization tool functions.
+Exports all concurrent, BIP, Workflow, Security, Diagnostics, Personalization, and
+Complete Report Wizard (design → deploy → test → rollback) tool functions.
 """
 
 from .concurrent_submit import (
@@ -35,6 +36,25 @@ from .ebs_personalization import (
     get_oaf_personalizations_tool,
 )
 from .ebs_alerts import get_alert_details_tool
+from .ebs_value_sets import (
+    inspect_value_set_tool,
+    generate_value_set_sql_tool,
+)
+from .ebs_report_validator import (
+    validate_sql_tool,
+    validate_parameter_mapping_tool,
+    validate_xml_data_template_tool,
+    validate_responsibility_chain_tool,
+    run_full_validation_checklist,
+)
+from .ebs_report_wizard import (
+    design_ebs_report_tool,
+    validate_report_design_tool,
+    generate_report_package_tool,
+    apply_report_to_ebs_tool,
+    rollback_report_tool,
+    test_report_request_tool,
+)
 
 __all__ = [
     # Concurrent Processing
@@ -63,4 +83,20 @@ __all__ = [
     "get_oaf_personalizations_tool",
     # Alerts
     "get_alert_details_tool",
+    # Value Sets
+    "inspect_value_set_tool",
+    "generate_value_set_sql_tool",
+    # Report Validator
+    "validate_sql_tool",
+    "validate_parameter_mapping_tool",
+    "validate_xml_data_template_tool",
+    "validate_responsibility_chain_tool",
+    "run_full_validation_checklist",
+    # Report Wizard — Full Lifecycle
+    "design_ebs_report_tool",
+    "validate_report_design_tool",
+    "generate_report_package_tool",
+    "apply_report_to_ebs_tool",
+    "rollback_report_tool",
+    "test_report_request_tool",
 ]

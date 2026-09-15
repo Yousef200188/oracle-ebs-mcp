@@ -36,6 +36,21 @@ from .tools import (
     get_form_personalizations_tool,
     get_oaf_personalizations_tool,
     get_alert_details_tool,
+    # Value Sets
+    inspect_value_set_tool,
+    generate_value_set_sql_tool,
+    # Report Validator
+    validate_sql_tool,
+    validate_parameter_mapping_tool,
+    validate_xml_data_template_tool,
+    validate_responsibility_chain_tool,
+    # Report Wizard — Full Lifecycle
+    design_ebs_report_tool,
+    validate_report_design_tool,
+    generate_report_package_tool,
+    apply_report_to_ebs_tool,
+    rollback_report_tool,
+    test_report_request_tool,
 )
 
 # Configure logging
@@ -460,6 +475,250 @@ def get_alert_details(alert_name: str) -> Dict[str, Any]:
         return get_alert_details_tool(alert_name)
     except Exception as e:
         return handle_tool_error(e, "get_alert_details")
+
+
+# ==============================================================================
+# Domain 8: Value Sets
+# ==============================================================================
+@mcp.tool()
+def inspect_value_set(value_set_name: str) -> Dict[str, Any]:
+    """
+    Inspect an existing EBS Value Set: validation type, format, table info, value count.
+    """
+    try:
+        return inspect_value_set_tool(value_set_name)
+    except Exception as e:
+        return handle_tool_error(e, "inspect_value_set")
+
+
+@mcp.tool()
+def generate_value_set_sql(
+    value_sets: List[Dict[str, Any]],
+    application_short_name: str = "XX",
+) -> Dict[str, Any]:
+    """
+    Generate FND_FLEX_VALUE_SETS registration SQL for a list of value set definitions.
+    Supports Independent, Table-validated, and None validation types.
+    """
+    try:
+        return generate_value_set_sql_tool(value_sets, application_short_name)
+    except Exception as e:
+        return handle_tool_error(e, "generate_value_set_sql")
+
+
+# ==============================================================================
+# Domain 9: Report Validator
+# ==============================================================================
+@mcp.tool()
+def validate_ebs_sql(
+    sql_query: str,
+    parameters: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """
+    Validate report SQL: aliases, aggregates, bind variables, DML safety, GROUP BY consistency.
+    Returns extracted aliases for XML Data Template cross-validation.
+    """
+    try:
+        return validate_sql_tool(sql_query, parameters)
+    except Exception as e:
+        return handle_tool_error(e, "validate_ebs_sql")
+
+
+@mcp.tool()
+def validate_parameter_mapping(
+    sql_bind_vars: List[str],
+    cp_parameters: List[Dict[str, Any]],
+    value_sets: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """
+    Cross-validate SQL bind variables ↔ Concurrent Program parameters ↔ Value Sets.
+    Detects orphaned bind vars, missing CP parameters, sequence gaps, missing value sets.
+    """
+    try:
+        return validate_parameter_mapping_tool(sql_bind_vars, cp_parameters, value_sets)
+    except Exception as e:
+        return handle_tool_error(e, "validate_parameter_mapping")
+
+
+@mcp.tool()
+def validate_xml_data_template(
+    xml_template: str,
+    sql_aliases: List[str],
+) -> Dict[str, Any]:
+    """
+    Verify all XML field tags in the Data Template originate from SQL aliases.
+    Detects phantom fields that would render blank in the report output.
+    """
+    try:
+        return validate_xml_data_template_tool(xml_template, sql_aliases)
+    except Exception as e:
+        return handle_tool_error(e, "validate_xml_data_template")
+
+
+@mcp.tool()
+def validate_responsibility_chain(
+    responsibility_name: str,
+    concurrent_program_name: str,
+    application_short_name: str = "PER",
+) -> Dict[str, Any]:
+    """
+    Live check of the full EBS access chain:
+    Responsibility → Request Group → Concurrent Program → Executable.
+    """
+    try:
+        return validate_responsibility_chain_tool(
+            responsibility_name, concurrent_program_name, application_short_name
+        )
+    except Exception as e:
+        return handle_tool_error(e, "validate_responsibility_chain")
+
+
+# ==============================================================================
+# Domain 10: Complete Report Wizard — Full Lifecycle
+# ==============================================================================
+@mcp.tool()
+def design_ebs_report(
+    report_name: str,
+    short_name: str,
+    application_short_name: str,
+    architecture: str,
+    sql_query: str,
+    parameters: Optional[List[Dict[str, Any]]] = None,
+    value_sets: Optional[List[Dict[str, Any]]] = None,
+    output_format: str = "PDF",
+    description: str = "",
+    business_purpose: str = "",
+    responsibility_name: str = "Global HRMS Manager",
+    request_group: str = "",
+    executable_short_name: str = "",
+    executable_method: str = "",
+    plsql_package: str = "",
+    rtf_template_name: str = "",
+    rdf_file_name: str = "",
+    data_definition_code: str = "",
+    appl_top: str = "$APPL_TOP",
+    security_profile: str = "",
+) -> Dict[str, Any]:
+    """
+    MASTER WIZARD — Build a complete Oracle EBS R12 report design object from scratch.
+
+    Covers the full 32-step lifecycle:
+      SQL → Parameters → Value Sets → XML Data Template → RTF/RDF →
+      Executable → Concurrent Program → Request Group → Responsibility →
+      XDO Registration → Deploy → Validate → Test → Rollback.
+
+    Returns a complete report_design object and 20-point pre-deployment checklist.
+    Pass the report_design to generate_report_package or apply_report_to_ebs.
+    """
+    try:
+        return design_ebs_report_tool(
+            report_name=report_name,
+            short_name=short_name,
+            application_short_name=application_short_name,
+            architecture=architecture,
+            sql_query=sql_query,
+            parameters=parameters,
+            value_sets=value_sets,
+            output_format=output_format,
+            description=description,
+            business_purpose=business_purpose,
+            responsibility_name=responsibility_name,
+            request_group=request_group,
+            executable_short_name=executable_short_name,
+            executable_method=executable_method,
+            plsql_package=plsql_package,
+            rtf_template_name=rtf_template_name,
+            rdf_file_name=rdf_file_name,
+            data_definition_code=data_definition_code,
+            appl_top=appl_top,
+            security_profile=security_profile,
+        )
+    except Exception as e:
+        return handle_tool_error(e, "design_ebs_report")
+
+
+@mcp.tool()
+def validate_report_design(report_design: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Run the 20-point pre-deployment validation on a report_design object.
+    Returns checklist with PASS/WARNING/ERROR per check and deployment_blocked flag.
+    """
+    try:
+        return validate_report_design_tool(report_design)
+    except Exception as e:
+        return handle_tool_error(e, "validate_report_design")
+
+
+@mcp.tool()
+def generate_report_package(report_design: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate all deployment artifacts for the EBS report as a base64-encoded ZIP:
+      - sql/ (value sets, executable, CP, parameters, request group, XDO, validation, rollback)
+      - xml/ (XML Data Template)
+      - rtf/ (RTF layout specification)
+      - deployment/ (deploy.sh, rollback.sh, rollback.sql)
+      - test/  (test cases)
+      - documentation/ (technical doc)
+    """
+    try:
+        return generate_report_package_tool(report_design)
+    except Exception as e:
+        return handle_tool_error(e, "generate_report_package")
+
+
+@mcp.tool()
+def apply_report_to_ebs(
+    report_design: Dict[str, Any],
+    confirmed: bool = False,
+    environment: str = "DEV",
+) -> Dict[str, Any]:
+    """
+    Execute the full deployment pipeline against the live EBS database.
+    Runs all SQL scripts in sequence. PROD deployment is blocked — scripts only.
+    Requires confirmed=True to proceed.
+    """
+    try:
+        return apply_report_to_ebs_tool(report_design, confirmed, environment)
+    except Exception as e:
+        return handle_tool_error(e, "apply_report_to_ebs")
+
+
+@mcp.tool()
+def rollback_report(
+    report_design: Dict[str, Any],
+    confirmed: bool = False,
+) -> Dict[str, Any]:
+    """
+    Execute the rollback script to cleanly remove the report from EBS:
+    removes Executable, Concurrent Program, Parameters, Request Group assignment, XDO objects.
+    Requires confirmed=True.
+    """
+    try:
+        return rollback_report_tool(report_design, confirmed)
+    except Exception as e:
+        return handle_tool_error(e, "rollback_report")
+
+
+@mcp.tool()
+def test_report_request(
+    concurrent_program_short_name: str,
+    application_short_name: str,
+    parameters: Optional[List[str]] = None,
+    wait_seconds: int = 120,
+) -> Dict[str, Any]:
+    """
+    Submit a test concurrent request for the deployed report and poll for completion.
+    Returns Request ID, Phase, Status, and a log preview (first 1000 chars).
+    """
+    try:
+        return test_report_request_tool(
+            concurrent_program_short_name,
+            application_short_name,
+            parameters,
+            wait_seconds,
+        )
+    except Exception as e:
+        return handle_tool_error(e, "test_report_request")
 
 
 def main() -> None:

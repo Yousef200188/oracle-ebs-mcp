@@ -65,7 +65,10 @@
         <span class="tab-icon">🌐</span> OAF Studio
       </button>
       <button class="tab-btn" data-module="sql" onclick="switchModule('sql')">
-        <span class="tab-icon">💾</span> SQL & PL/SQL
+        <span class="tab-icon">💾</span> SQL &amp; PL/SQL
+      </button>
+      <button class="tab-btn wizard-tab-btn" data-module="wizard" onclick="switchModule('wizard')">
+        <span class="tab-icon">🚀</span> Report Wizard
       </button>
     </nav>
 
@@ -770,6 +773,943 @@ WHERE
     </div>
   </div>
 
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- REPORT WIZARD — FULL LIFECYCLE PANEL                                   -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div id="report-wizard-overlay" class="wizard-overlay hidden">
+    <div class="wizard-container">
+
+      <!-- Wizard Header -->
+      <div class="wizard-header">
+        <div class="wizard-title-block">
+          <span class="wizard-badge">🚀</span>
+          <div>
+            <h2>Oracle EBS R12 Report Wizard</h2>
+            <p>Full Lifecycle: Business Requirement → SQL → XML → RTF → Deploy → Test → Rollback</p>
+          </div>
+        </div>
+        <button class="btn btn-xs btn-outline" onclick="closeReportWizard()">✕ Close</button>
+      </div>
+
+      <!-- Step Breadcrumb -->
+      <div class="wizard-steps">
+        <div class="wz-step active" id="wz-step-1" onclick="showWizardSection(1)"><span>1</span> Architecture</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-2" onclick="showWizardSection(2)"><span>2</span> Report Info</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-3" onclick="showWizardSection(3)"><span>3</span> SQL</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-4" onclick="showWizardSection(4)"><span>4</span> Parameters</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-5" onclick="showWizardSection(5)"><span>5</span> Value Sets</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-6" onclick="showWizardSection(6)"><span>6</span> XML / RTF</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-7" onclick="showWizardSection(7)"><span>7</span> Validate</div>
+        <div class="wz-arrow">›</div>
+        <div class="wz-step" id="wz-step-8" onclick="showWizardSection(8)"><span>8</span> Deploy</div>
+      </div>
+
+      <!-- Wizard Body -->
+      <div class="wizard-body">
+
+        <!-- SECTION 1: Architecture -->
+        <div class="wz-section active" id="wz-sec-1">
+          <h3>Step 1 — Select Report Architecture</h3>
+          <div class="arch-cards">
+            <div class="arch-card selected" id="arch-BIP" onclick="selectArch('BIP')">
+              <div class="arch-icon">📊</div>
+              <div class="arch-name">BI Publisher</div>
+              <div class="arch-desc">XML Data Template + RTF Layout<br>Output: PDF, Excel, RTF, HTML</div>
+            </div>
+            <div class="arch-card" id="arch-RDF" onclick="selectArch('RDF')">
+              <div class="arch-icon">📋</div>
+              <div class="arch-name">Oracle Reports (RDF)</div>
+              <div class="arch-desc">Oracle Reports 10g/11g .rdf<br>Output: PDF, HTML, Text</div>
+            </div>
+            <div class="arch-card" id="arch-HYBRID" onclick="selectArch('HYBRID')">
+              <div class="arch-icon">🔀</div>
+              <div class="arch-name">Hybrid RDF + BIP</div>
+              <div class="arch-desc">RDF data source + BIP RTF layout<br>Best of both worlds</div>
+            </div>
+          </div>
+          <div class="wz-nav">
+            <button class="btn btn-primary" onclick="showWizardSection(2)">Next: Report Info →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 2: Report Information -->
+        <div class="wz-section" id="wz-sec-2">
+          <h3>Step 2 — Report Information</h3>
+          <div class="wz-form-grid">
+            <div class="form-group">
+              <label>Report Name (Full) *</label>
+              <input type="text" id="wz-report-name" placeholder="e.g. XX Employee Headcount Report" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>Short Name (CP Name) *</label>
+              <input type="text" id="wz-short-name" placeholder="e.g. XX_EMP_HEADCOUNT" class="form-input"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div class="form-group">
+              <label>Application Short Name *</label>
+              <select id="wz-app-short" class="form-input">
+                <option value="PER">PER — Human Resources</option>
+                <option value="PAY">PAY — Payroll</option>
+                <option value="BEN">BEN — Advanced Benefits</option>
+                <option value="GL">GL — General Ledger</option>
+                <option value="AP">AP — Payables</option>
+                <option value="AR">AR — Receivables</option>
+                <option value="PO">PO — Purchasing</option>
+                <option value="INV">INV — Inventory</option>
+                <option value="PA">PA — Projects</option>
+                <option value="XX" selected>XX — Custom Application</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Output Format</label>
+              <select id="wz-output-format" class="form-input">
+                <option value="PDF">PDF</option>
+                <option value="EXCEL">Excel</option>
+                <option value="RTF">RTF</option>
+                <option value="HTML">HTML</option>
+                <option value="TEXT">Text</option>
+                <option value="XML">XML</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Responsibility</label>
+              <input type="text" id="wz-responsibility" value="Global HRMS Manager" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>Request Group</label>
+              <input type="text" id="wz-request-group" placeholder="Auto-detect from Responsibility" class="form-input">
+            </div>
+            <div class="form-group full-width">
+              <label>Description</label>
+              <textarea id="wz-description" rows="2" class="form-input" placeholder="Brief description of the report's purpose"></textarea>
+            </div>
+            <div class="form-group full-width">
+              <label>Business Purpose</label>
+              <textarea id="wz-business-purpose" rows="2" class="form-input" placeholder="Business justification / use case"></textarea>
+            </div>
+          </div>
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(1)">← Back</button>
+            <button class="btn btn-primary" onclick="showWizardSection(3)">Next: SQL Query →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 3: SQL Query -->
+        <div class="wz-section" id="wz-sec-3">
+          <h3>Step 3 — SQL Query</h3>
+          <div class="wz-sql-hint">
+            💡 Use <code>:P_PARAMETER_NAME</code> for bind variables. All SELECT columns must have explicit <code>AS alias_name</code> for XML mapping.
+          </div>
+          <textarea id="wz-sql-query" rows="16" class="form-input code-font"
+            placeholder="SELECT
+  papf.employee_number          AS EMPLOYEE_NUMBER,
+  papf.full_name                AS FULL_NAME,
+  haou.name                     AS ORGANIZATION_NAME,
+  papf.hire_date                AS HIRE_DATE
+FROM
+  per_all_people_f papf
+  JOIN hr_all_organization_units haou ON haou.organization_id = papf.business_group_id
+WHERE
+  papf.effective_end_date = TO_DATE('31-12-4712','DD-MM-YYYY')
+  AND papf.person_type_id IN (
+    SELECT person_type_id FROM per_person_types WHERE system_person_type = 'EMP'
+  )
+  AND papf.business_group_id = :P_BUSINESS_GROUP_ID
+ORDER BY papf.full_name"></textarea>
+          <div class="wz-sql-actions">
+            <button class="btn btn-sm btn-outline" onclick="validateWizardSQL()">🔍 Validate SQL</button>
+            <span id="wz-sql-status" class="wz-status-badge"></span>
+          </div>
+          <div id="wz-sql-result" class="wz-result-block hidden"></div>
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(2)">← Back</button>
+            <button class="btn btn-primary" onclick="showWizardSection(4)">Next: Parameters →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 4: Parameters -->
+        <div class="wz-section" id="wz-sec-4">
+          <h3>Step 4 — Concurrent Program Parameters</h3>
+          <div id="wz-params-table-wrap">
+            <table class="wz-table">
+              <thead>
+                <tr>
+                  <th>Seq</th>
+                  <th>Name (Bind Var)</th>
+                  <th>Prompt</th>
+                  <th>Type</th>
+                  <th>Value Set</th>
+                  <th>Required</th>
+                  <th>Default</th>
+                  <th>Token</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="wz-params-body">
+                <!-- Rows added dynamically -->
+              </tbody>
+            </table>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="addWizardParam()">+ Add Parameter</button>
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(3)">← Back</button>
+            <button class="btn btn-primary" onclick="showWizardSection(5)">Next: Value Sets →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 5: Value Sets -->
+        <div class="wz-section" id="wz-sec-5">
+          <h3>Step 5 — Value Sets</h3>
+          <table class="wz-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Format</th>
+                <th>Size</th>
+                <th>Table / Values</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="wz-vs-body"></tbody>
+          </table>
+          <button class="btn btn-sm btn-outline" onclick="addWizardValueSet()">+ Add Value Set</button>
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(4)">← Back</button>
+            <button class="btn btn-primary" onclick="generateWizardXML(); showWizardSection(6)">Next: XML / RTF Preview →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 6: XML Data Template & RTF Spec -->
+        <div class="wz-section" id="wz-sec-6">
+          <h3>Step 6 — XML Data Template &amp; RTF Layout Spec</h3>
+          <div class="wz-two-col">
+            <div>
+              <label>XML Data Template</label>
+              <textarea id="wz-xml-template" rows="18" class="form-input code-font" placeholder="Click 'Generate' to auto-create XML template from SQL aliases"></textarea>
+              <button class="btn btn-sm btn-outline" onclick="generateWizardXML()">⚙️ Auto-Generate XML</button>
+            </div>
+            <div>
+              <label>RTF Layout Specification</label>
+              <textarea id="wz-rtf-spec" rows="18" class="form-input code-font" placeholder="RTF spec will appear here after generation" readonly></textarea>
+              <button class="btn btn-sm btn-outline" onclick="generateWizardRTFSpec()">⚙️ Generate RTF Spec</button>
+            </div>
+          </div>
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(5)">← Back</button>
+            <button class="btn btn-primary" onclick="runWizardValidation(); showWizardSection(7)">Next: Validate →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 7: 20-Point Validation Checklist -->
+        <div class="wz-section" id="wz-sec-7">
+          <h3>Step 7 — 20-Point Pre-Deployment Validation</h3>
+          <div class="wz-checklist-actions">
+            <button class="btn btn-sm btn-outline" onclick="runWizardValidation()">▶ Run Validation</button>
+            <span id="wz-checklist-summary" class="wz-status-badge"></span>
+          </div>
+          <div id="wz-checklist" class="wz-checklist">
+            <p class="text-muted">Click "Run Validation" to execute all 20 pre-deployment checks.</p>
+          </div>
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(6)">← Back</button>
+            <button class="btn btn-primary" id="wz-goto-deploy-btn" onclick="showWizardSection(8)">Next: Deploy →</button>
+          </div>
+        </div>
+
+        <!-- SECTION 8: Deploy / Rollback / Test -->
+        <div class="wz-section" id="wz-sec-8">
+          <h3>Step 8 — Deploy, Test &amp; Rollback</h3>
+          <div class="wz-deploy-grid">
+
+            <!-- Download Package -->
+            <div class="wz-action-card">
+              <div class="wz-action-icon">📦</div>
+              <h4>Download Package</h4>
+              <p>Download all SQL scripts, XML template, RTF spec, deploy scripts, and documentation as a ZIP.</p>
+              <button class="btn btn-primary" onclick="downloadWizardPackage()">⬇ Download ZIP</button>
+            </div>
+
+            <!-- Deploy to EBS -->
+            <div class="wz-action-card">
+              <div class="wz-action-icon">🚀</div>
+              <h4>Deploy to EBS</h4>
+              <p>Execute all SQL scripts against the live EBS instance in the selected environment.</p>
+              <div class="wz-env-select">
+                <label>Environment:</label>
+                <select id="wz-deploy-env" class="form-input">
+                  <option value="DEV">DEV</option>
+                  <option value="TEST">TEST</option>
+                  <option value="UAT">UAT</option>
+                </select>
+              </div>
+              <label class="wz-confirm-label">
+                <input type="checkbox" id="wz-deploy-confirm"> I confirm this deployment
+              </label>
+              <button class="btn btn-danger" onclick="deployWizardReport()">🚀 Deploy to EBS</button>
+            </div>
+
+            <!-- Test Request -->
+            <div class="wz-action-card">
+              <div class="wz-action-icon">🧪</div>
+              <h4>Test Concurrent Request</h4>
+              <p>Submit a test request and poll for completion. Timeout: 120s.</p>
+              <button class="btn btn-outline" onclick="testWizardReport()">▶ Submit Test Request</button>
+            </div>
+
+            <!-- Rollback -->
+            <div class="wz-action-card">
+              <div class="wz-action-icon">↩</div>
+              <h4>Rollback</h4>
+              <p>Remove all EBS objects for this report (Executable, CP, Params, Request Group, XDO).</p>
+              <label class="wz-confirm-label">
+                <input type="checkbox" id="wz-rollback-confirm"> I confirm rollback
+              </label>
+              <button class="btn btn-danger" onclick="rollbackWizardReport()">↩ Rollback</button>
+            </div>
+          </div>
+
+          <!-- Action Output Log -->
+          <div class="wz-log-box">
+            <div class="wz-log-header">
+              <span>Action Log</span>
+              <span id="wz-log-status" class="wz-status-badge"></span>
+            </div>
+            <pre id="wz-action-log" class="code-block">Ready. Select an action above.</pre>
+          </div>
+
+          <div class="wz-nav">
+            <button class="btn btn-outline" onclick="showWizardSection(7)">← Back to Validation</button>
+          </div>
+        </div>
+
+      </div><!-- /.wizard-body -->
+    </div><!-- /.wizard-container -->
+  </div><!-- /.wizard-overlay -->
+
+  <!-- Wizard Trigger Button (shown in Report Wizard tab) -->
+  <style>
+    /* ── Report Wizard Overlay ──────────────────────────────────────────── */
+    .wizard-overlay {
+      position: fixed; inset: 0;
+      background: rgba(10, 14, 26, 0.92);
+      z-index: 3000;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 24px 16px;
+    }
+    .wizard-overlay.hidden { display: none; }
+    .wizard-container {
+      background: #141928;
+      border: 1px solid #2a3a5c;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 1100px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+    .wizard-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 28px;
+      border-bottom: 1px solid #1f2d4a;
+      background: linear-gradient(135deg, #0f1a30 0%, #141928 100%);
+      border-radius: 16px 16px 0 0;
+    }
+    .wizard-title-block { display: flex; align-items: center; gap: 16px; }
+    .wizard-badge { font-size: 2rem; }
+    .wizard-header h2 { margin: 0; color: #e2e8f0; font-size: 1.2rem; }
+    .wizard-header p { margin: 4px 0 0; color: #7b91b5; font-size: 0.82rem; }
+    .wizard-steps {
+      display: flex; align-items: center; gap: 4px;
+      padding: 14px 28px;
+      background: #0d1525;
+      overflow-x: auto;
+    }
+    .wz-step {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: #1a2540;
+      color: #7b91b5;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .wz-step span {
+      width: 20px; height: 20px;
+      background: #2a3a5c;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem;
+    }
+    .wz-step.active {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: #fff;
+    }
+    .wz-step.active span { background: rgba(255,255,255,0.2); color: #fff; }
+    .wz-step.done { background: #14532d; color: #86efac; }
+    .wz-step.done span { background: rgba(134,239,172,0.2); }
+    .wz-arrow { color: #2a3a5c; font-size: 1.1rem; }
+    .wizard-body { padding: 28px; }
+    .wz-section { display: none; }
+    .wz-section.active { display: block; }
+    .wz-section h3 { color: #93c5fd; margin: 0 0 20px; font-size: 1rem; font-weight: 700; letter-spacing: 0.3px; }
+    /* Architecture cards */
+    .arch-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+      margin-bottom: 24px;
+    }
+    .arch-card {
+      border: 2px solid #1e2d45;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #1a2540;
+    }
+    .arch-card:hover { border-color: #3b82f6; background: #1e3058; }
+    .arch-card.selected { border-color: #3b82f6; background: linear-gradient(135deg, #1e3a8a22, #1e3058); }
+    .arch-icon { font-size: 2rem; margin-bottom: 10px; }
+    .arch-name { font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+    .arch-desc { font-size: 0.78rem; color: #7b91b5; line-height: 1.5; }
+    /* Form grid */
+    .wz-form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      margin-bottom: 24px;
+    }
+    .wz-form-grid .full-width { grid-column: 1 / -1; }
+    .wz-sql-hint {
+      background: #0f2346;
+      border: 1px solid #1e3a6e;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.8rem;
+      color: #93c5fd;
+      margin-bottom: 12px;
+    }
+    .wz-sql-actions { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+    .wz-status-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 10px;
+      background: #1a2540;
+      color: #7b91b5;
+    }
+    .wz-status-badge.pass { background: #14532d; color: #86efac; }
+    .wz-status-badge.warning { background: #713f12; color: #fde68a; }
+    .wz-status-badge.error { background: #7f1d1d; color: #fca5a5; }
+    .wz-result-block {
+      background: #0a1020;
+      border: 1px solid #1e2d45;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #e2e8f0;
+      max-height: 180px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-top: 8px;
+    }
+    /* Tables */
+    .wz-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-bottom: 12px;
+    }
+    .wz-table th {
+      background: #0d1525;
+      color: #7b91b5;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #1e2d45;
+      white-space: nowrap;
+    }
+    .wz-table td { padding: 6px 8px; border-bottom: 1px solid #1a2540; }
+    .wz-table input, .wz-table select {
+      background: #1a2540;
+      border: 1px solid #2a3a5c;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 4px 8px;
+      font-size: 0.78rem;
+      width: 100%;
+    }
+    /* Two-col XML/RTF */
+    .wz-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .wz-two-col label { display: block; color: #7b91b5; font-size: 0.8rem; margin-bottom: 6px; font-weight: 600; }
+    /* Checklist */
+    .wz-checklist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; margin-bottom: 20px; }
+    .wz-check-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: #1a2540;
+      font-size: 0.82rem;
+    }
+    .wz-check-item .chk-icon { font-size: 1rem; min-width: 20px; text-align: center; }
+    .wz-check-item .chk-name { flex: 1; color: #e2e8f0; }
+    .wz-check-item .chk-detail { color: #7b91b5; font-size: 0.76rem; }
+    .wz-check-item.pass { border-left: 3px solid #22c55e; }
+    .wz-check-item.warning { border-left: 3px solid #f59e0b; background: #1a1a10; }
+    .wz-check-item.error { border-left: 3px solid #ef4444; background: #1a0a0a; }
+    .wz-checklist-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    /* Deploy grid */
+    .wz-deploy-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .wz-action-card {
+      background: #1a2540;
+      border: 1px solid #2a3a5c;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .wz-action-icon { font-size: 2rem; margin-bottom: 10px; }
+    .wz-action-card h4 { margin: 0 0 8px; color: #e2e8f0; font-size: 0.9rem; }
+    .wz-action-card p { margin: 0 0 14px; color: #7b91b5; font-size: 0.78rem; line-height: 1.5; }
+    .wz-env-select { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.8rem; color: #7b91b5; }
+    .wz-env-select .form-input { width: auto; min-width: 100px; }
+    .wz-confirm-label { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #fde68a; margin-bottom: 12px; cursor: pointer; }
+    .wz-log-box {
+      background: #0a1020;
+      border: 1px solid #1e2d45;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .wz-log-header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #0d1525;
+      padding: 8px 16px;
+      font-size: 0.8rem;
+      color: #7b91b5;
+      font-weight: 600;
+      border-bottom: 1px solid #1e2d45;
+    }
+    #wz-action-log { margin: 0; padding: 14px 16px; max-height: 260px; overflow-y: auto; font-size: 0.78rem; }
+    /* Navigation bar */
+    .wz-nav { display: flex; gap: 10px; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #1e2d45; }
+    /* Wizard tab trigger in main workspace */
+    .wizard-tab-btn { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; color: #fff !important; font-weight: 700 !important; }
+    .wizard-tab-btn:hover { background: linear-gradient(135deg, #1e40af, #3b82f6) !important; }
+    /* Panel for wizard tab */
+    #panel-wizard {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 400px; text-align: center;
+    }
+    .code-font { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+    .btn-danger { background: linear-gradient(135deg, #7f1d1d, #dc2626); color: #fff; border: none; }
+    .btn-danger:hover { background: linear-gradient(135deg, #991b1b, #ef4444); }
+  </style>
+
   <script src="app.js?v=20260915b"></script>
+  <script>
+  // ══════════════════════════════════════════════════════════════════════════
+  // REPORT WIZARD — JavaScript Controller
+  // ══════════════════════════════════════════════════════════════════════════
+
+  let wizardCurrentArch = 'BIP';
+  let wizardDesign = null;   // Last design_ebs_report_tool result
+  let wizardParamRows = [];  // Param table rows
+  let wizardVSRows = [];     // Value set rows
+
+  function openReportWizard() {
+    document.getElementById('report-wizard-overlay').classList.remove('hidden');
+    showWizardSection(1);
+  }
+  function closeReportWizard() {
+    document.getElementById('report-wizard-overlay').classList.add('hidden');
+  }
+
+  function selectArch(arch) {
+    wizardCurrentArch = arch;
+    document.querySelectorAll('.arch-card').forEach(el => el.classList.remove('selected'));
+    document.getElementById('arch-' + arch).classList.add('selected');
+  }
+
+  function showWizardSection(num) {
+    document.querySelectorAll('.wz-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.wz-step').forEach(s => s.classList.remove('active'));
+    document.getElementById('wz-sec-' + num).classList.add('active');
+    document.getElementById('wz-step-' + num).classList.add('active');
+  }
+
+  // ─── Collect all fields into a design payload ──────────────────────────
+  function buildWizardPayload() {
+    const params = wizardParamRows.map((id, i) => {
+      const row = document.getElementById('wz-param-row-' + id);
+      if (!row) return null;
+      return {
+        sequence: parseInt(row.querySelector('.wz-p-seq').value) || (i + 1) * 10,
+        name: row.querySelector('.wz-p-name').value.toUpperCase(),
+        prompt: row.querySelector('.wz-p-prompt').value,
+        data_type: row.querySelector('.wz-p-type').value,
+        value_set: row.querySelector('.wz-p-vs').value,
+        required: row.querySelector('.wz-p-req').value,
+        token: row.querySelector('.wz-p-token').value,
+      };
+    }).filter(Boolean);
+
+    const vsets = wizardVSRows.map((id, i) => {
+      const row = document.getElementById('wz-vs-row-' + id);
+      if (!row) return null;
+      return {
+        name: row.querySelector('.wz-vs-name').value.toUpperCase(),
+        validation_type: row.querySelector('.wz-vs-type').value,
+        format_type: row.querySelector('.wz-vs-fmt').value,
+        maximum_size: parseInt(row.querySelector('.wz-vs-size').value) || 30,
+        table_name: row.querySelector('.wz-vs-table') ? row.querySelector('.wz-vs-table').value : '',
+      };
+    }).filter(Boolean);
+
+    return {
+      report_name: document.getElementById('wz-report-name').value,
+      short_name: document.getElementById('wz-short-name').value.toUpperCase(),
+      application_short_name: document.getElementById('wz-app-short').value,
+      architecture: wizardCurrentArch,
+      sql_query: document.getElementById('wz-sql-query').value,
+      parameters: params,
+      value_sets: vsets,
+      output_format: document.getElementById('wz-output-format').value,
+      description: document.getElementById('wz-description').value,
+      business_purpose: document.getElementById('wz-business-purpose').value,
+      responsibility_name: document.getElementById('wz-responsibility').value,
+      request_group: document.getElementById('wz-request-group').value,
+    };
+  }
+
+  // ─── SQL Validation ────────────────────────────────────────────────────
+  async function validateWizardSQL() {
+    const sql = document.getElementById('wz-sql-query').value;
+    const badge = document.getElementById('wz-sql-status');
+    const result = document.getElementById('wz-sql-result');
+    badge.textContent = '⏳ Validating...';
+    badge.className = 'wz-status-badge';
+    result.classList.add('hidden');
+
+    try {
+      const res = await fetch('/api/report/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_design: { sql_query: sql, parameters: [], architecture: 'BIP', report_name: 'test', short_name: 'XX_TEST', application_short_name: 'XX' } })
+      });
+      const data = await res.json();
+      const sv = data.sql_validation || {};
+      const st = sv.status || 'pass';
+      badge.textContent = st === 'pass' ? '✓ Valid' : st === 'warning' ? '⚠ Warnings' : '✗ Errors';
+      badge.className = 'wz-status-badge ' + st;
+      let txt = '';
+      if (sv.issues && sv.issues.length) txt += '❌ ISSUES:\n' + sv.issues.join('\n') + '\n';
+      if (sv.warnings && sv.warnings.length) txt += '⚠ WARNINGS:\n' + sv.warnings.join('\n') + '\n';
+      if (sv.aliases && sv.aliases.length) txt += '\n✓ Aliases found: ' + sv.aliases.join(', ');
+      result.textContent = txt || '✓ SQL looks valid.';
+      result.classList.remove('hidden');
+    } catch(e) {
+      badge.textContent = '✗ Error';
+      badge.className = 'wz-status-badge error';
+      result.textContent = e.message;
+      result.classList.remove('hidden');
+    }
+  }
+
+  // ─── Add Parameter Row ─────────────────────────────────────────────────
+  let wpCount = 0;
+  function addWizardParam(p) {
+    wpCount++;
+    const id = wpCount;
+    wizardParamRows.push(id);
+    const tbody = document.getElementById('wz-params-body');
+    const tr = document.createElement('tr');
+    tr.id = 'wz-param-row-' + id;
+    tr.innerHTML = `
+      <td><input type="number" class="wz-p-seq" value="${id*10}" style="width:50px"></td>
+      <td><input type="text" class="wz-p-name" value="${p?p.name:''}" placeholder="P_ORG_ID" style="width:120px" oninput="this.value=this.value.toUpperCase()"></td>
+      <td><input type="text" class="wz-p-prompt" value="${p?p.prompt:''}" placeholder="Organization" style="width:120px"></td>
+      <td><select class="wz-p-type">
+        <option value="VARCHAR2"${p&&p.data_type==='VARCHAR2'?' selected':''}>VARCHAR2</option>
+        <option value="NUMBER"${p&&p.data_type==='NUMBER'?' selected':''}>NUMBER</option>
+        <option value="DATE"${p&&p.data_type==='DATE'?' selected':''}>DATE</option>
+      </select></td>
+      <td><input type="text" class="wz-p-vs" value="${p?p.value_set||'':''}" placeholder="XX_ORG_VS" style="width:110px"></td>
+      <td><select class="wz-p-req">
+        <option value="Y"${p&&p.required==='Y'?' selected':''}>Y</option>
+        <option value="N"${!p||p.required!=='Y'?' selected':''}>N</option>
+      </select></td>
+      <td><input type="text" class="wz-p-default" value="${p?p.default_value||'':''}" style="width:80px"></td>
+      <td><input type="text" class="wz-p-token" value="${p?p.token||p.name||'':''}" style="width:100px"></td>
+      <td><button class="btn btn-xs btn-outline" onclick="removeWzRow('wz-param-row-${id}',wizardParamRows,${id})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // ─── Add Value Set Row ─────────────────────────────────────────────────
+  let wvCount = 0;
+  function addWizardValueSet(v) {
+    wvCount++;
+    const id = wvCount;
+    wizardVSRows.push(id);
+    const tbody = document.getElementById('wz-vs-body');
+    const tr = document.createElement('tr');
+    tr.id = 'wz-vs-row-' + id;
+    tr.innerHTML = `
+      <td><input type="text" class="wz-vs-name" value="${v?v.name:''}" placeholder="XX_ORG_VS" style="width:150px" oninput="this.value=this.value.toUpperCase()"></td>
+      <td><select class="wz-vs-type">
+        <option value="I">Independent</option>
+        <option value="D">Table</option>
+        <option value="N">None</option>
+        <option value="F">Format Only</option>
+      </select></td>
+      <td><select class="wz-vs-fmt">
+        <option value="C">Char</option>
+        <option value="N">Number</option>
+        <option value="D">Date</option>
+      </select></td>
+      <td><input type="number" class="wz-vs-size" value="${v?v.maximum_size||30:30}" style="width:60px"></td>
+      <td><input type="text" class="wz-vs-table" value="${v?v.table_name||'':''}" placeholder="Table/Values" style="width:160px"></td>
+      <td><button class="btn btn-xs btn-outline" onclick="removeWzRow('wz-vs-row-${id}',wizardVSRows,${id})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  function removeWzRow(rowId, arr, id) {
+    const el = document.getElementById(rowId);
+    if (el) el.remove();
+    const idx = arr.indexOf(id);
+    if (idx > -1) arr.splice(idx, 1);
+  }
+
+  // ─── Generate XML Data Template ────────────────────────────────────────
+  async function generateWizardXML() {
+    const payload = buildWizardPayload();
+    try {
+      const res = await fetch('/api/report/design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.report_design) {
+        wizardDesign = data.report_design;
+        // Generate package to get XML
+        const pkgRes = await fetch('/api/report/package', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report_design: wizardDesign })
+        });
+        const pkg = await pkgRes.json();
+        if (pkg.xml_data_template) {
+          document.getElementById('wz-xml-template').value = pkg.xml_data_template;
+        }
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  async function generateWizardRTFSpec() {
+    if (!wizardDesign) await generateWizardXML();
+    if (!wizardDesign) return;
+    const pkgRes = await fetch('/api/report/package', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_design: wizardDesign })
+    });
+    const pkg = await pkgRes.json();
+    const rtfFile = pkg.files && Object.keys(pkg.files).find(k => k.includes('/rtf/'));
+    if (rtfFile) document.getElementById('wz-rtf-spec').value = pkg.files[rtfFile];
+  }
+
+  // ─── Validation Checklist ──────────────────────────────────────────────
+  async function runWizardValidation() {
+    const payload = buildWizardPayload();
+    const summary = document.getElementById('wz-checklist-summary');
+    const checklist = document.getElementById('wz-checklist');
+    summary.textContent = '⏳ Validating...';
+    summary.className = 'wz-status-badge';
+    checklist.innerHTML = '<p class="text-muted">Running 20 checks...</p>';
+
+    try {
+      // First design the report
+      const dRes = await fetch('/api/report/design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const dData = await dRes.json();
+      wizardDesign = dData.report_design || null;
+
+      const res = await fetch('/api/report/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_design: wizardDesign || payload })
+      });
+      const data = await res.json();
+      const cl = data.checklist || {};
+      const checks = cl.checks || [];
+
+      summary.textContent = `${cl.passed||0}/20 passed · ${cl.errors||0} errors · ${cl.warnings||0} warnings`;
+      summary.className = 'wz-status-badge ' + (cl.status||'pass').toLowerCase();
+
+      checklist.innerHTML = checks.map(c => `
+        <div class="wz-check-item ${c.status.toLowerCase()}">
+          <span class="chk-icon">${c.status==='PASS'?'✓':c.status==='WARNING'?'⚠':'✗'}</span>
+          <span class="chk-name">${c.name}</span>
+          <span class="chk-detail">${c.detail||''}</span>
+          <span class="wz-status-badge ${c.status.toLowerCase()}">${c.status}</span>
+        </div>
+      `).join('');
+    } catch(e) {
+      checklist.innerHTML = `<p style="color:#ef4444">Error: ${e.message}</p>`;
+    }
+  }
+
+  // ─── Download ZIP Package ──────────────────────────────────────────────
+  async function downloadWizardPackage() {
+    if (!wizardDesign) {
+      const payload = buildWizardPayload();
+      const res = await fetch('/api/report/design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      wizardDesign = data.report_design;
+    }
+
+    const log = document.getElementById('wz-action-log');
+    log.textContent = '⏳ Generating package...';
+
+    try {
+      const res = await fetch('/api/report/package', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_design: wizardDesign, download: true })
+      });
+      if (res.headers.get('content-type') === 'application/zip') {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (wizardDesign.short_name || 'XX_REPORT') + '_package.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+        log.textContent = '✓ Package downloaded: ' + a.download;
+      } else {
+        const data = await res.json();
+        log.textContent = '✓ Package ready. Files: ' + (data.file_list || []).join(', ');
+      }
+    } catch(e) { log.textContent = '✗ Error: ' + e.message; }
+  }
+
+  // ─── Deploy to EBS ─────────────────────────────────────────────────────
+  async function deployWizardReport() {
+    if (!document.getElementById('wz-deploy-confirm').checked) {
+      alert('Please check the confirmation checkbox before deploying.');
+      return;
+    }
+    const env = document.getElementById('wz-deploy-env').value;
+    const log = document.getElementById('wz-action-log');
+    const badge = document.getElementById('wz-log-status');
+    log.textContent = `⏳ Deploying to ${env}...`;
+
+    if (!wizardDesign) { const payload = buildWizardPayload(); wizardDesign = payload; }
+
+    try {
+      const res = await fetch('/api/report/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_design: wizardDesign, confirmed: true, environment: env })
+      });
+      const data = await res.json();
+      const steps = data.steps || [];
+      let txt = `Status: ${data.status}\n`;
+      steps.forEach(s => { txt += `[${s.status.toUpperCase()}] ${s.step}\n${s.output||''}\n${s.error||''}\n`; });
+      if (data.message) txt += '\n' + data.message;
+      log.textContent = txt;
+      badge.textContent = data.status === 'success' ? '✓ Deployed' : '✗ Failed';
+      badge.className = 'wz-status-badge ' + (data.status === 'success' ? 'pass' : 'error');
+    } catch(e) { log.textContent = '✗ ' + e.message; }
+  }
+
+  // ─── Test Request ──────────────────────────────────────────────────────
+  async function testWizardReport() {
+    const sn = document.getElementById('wz-short-name').value.toUpperCase();
+    const app = document.getElementById('wz-app-short').value;
+    const log = document.getElementById('wz-action-log');
+    const badge = document.getElementById('wz-log-status');
+    log.textContent = `⏳ Submitting test request for ${sn}...`;
+    badge.textContent = '⏳';
+    badge.className = 'wz-status-badge';
+
+    try {
+      const res = await fetch('/api/report/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ short_name: sn, application_short_name: app, parameters: [], wait_seconds: 120 })
+      });
+      const data = await res.json();
+      log.textContent = `Status: ${data.status}\nRequest ID: ${data.request_id||'N/A'}\nPhase: ${data.phase||'N/A'}\nCompletion: ${data.completion_status||'N/A'}\n\nLog Preview:\n${data.log_preview||''}`;
+      badge.textContent = data.status === 'pass' ? '✓ Passed' : '✗ Failed';
+      badge.className = 'wz-status-badge ' + (data.status === 'pass' ? 'pass' : 'error');
+    } catch(e) { log.textContent = '✗ ' + e.message; }
+  }
+
+  // ─── Rollback ──────────────────────────────────────────────────────────
+  async function rollbackWizardReport() {
+    if (!document.getElementById('wz-rollback-confirm').checked) {
+      alert('Please check the rollback confirmation checkbox.');
+      return;
+    }
+    const log = document.getElementById('wz-action-log');
+    const badge = document.getElementById('wz-log-status');
+    log.textContent = '⏳ Executing rollback...';
+
+    if (!wizardDesign) { wizardDesign = buildWizardPayload(); }
+
+    try {
+      const res = await fetch('/api/report/rollback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_design: wizardDesign, confirmed: true })
+      });
+      const data = await res.json();
+      log.textContent = `Status: ${data.status}\n${data.message||''}\n${data.output||''}\n${data.error||''}`;
+      badge.textContent = data.status === 'success' ? '✓ Rolled back' : '✗ Failed';
+      badge.className = 'wz-status-badge ' + (data.status === 'success' ? 'pass' : 'error');
+    } catch(e) { log.textContent = '✗ ' + e.message; }
+  }
+
+  // ─── Hook wizard tab ───────────────────────────────────────────────────
+  // When the user clicks the "Report Wizard" module tab, show a landing panel
+  // instead of the workspace split. We do this by intercepting switchModule.
+  const _origSwitchModule = window.switchModule;
+  window.switchModule = function(module) {
+    if (module === 'wizard') {
+      // Activate the tab button
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.module === 'wizard');
+      });
+      openReportWizard();
+    } else {
+      if (_origSwitchModule) _origSwitchModule(module);
+    }
+  };
+  </script>
+
 </body>
 </html>
