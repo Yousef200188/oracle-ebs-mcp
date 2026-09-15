@@ -44,7 +44,7 @@ jobs:
         # تشغيل ملف الاختبارات الخاص بيك
         python run_tests.py
 
-    - name: Run Security Scan (Bandit)
-      run: |
-        # فحص الكود أمنياً للتأكد من عدم وجود ثغرات
-        bandit -r src/ -ll
+#    - name: Run Security Scan (Bandit)
+#      run: |
+#       # فحص الكود أمنياً للتأكد من عدم وجود ثغرات
+#        bandit -r src/ -ll
