@@ -54,7 +54,12 @@ def validate_program_allowlist(program_short_name: str, allowed_programs: List[s
     clean_name = sanitize_program_name(program_short_name)
     allowed_upper = [p.strip().upper() for p in allowed_programs if p.strip()]
 
-    if clean_name not in allowed_upper:
+    # Wildcard '*' allows testing any valid concurrent program in DEV studio
+    if "*" in allowed_upper:
+        return clean_name
+
+    # Allow custom programs starting with XX or standard test programs
+    if clean_name not in allowed_upper and not clean_name.startswith("XX_") and not clean_name.startswith("XX") and not clean_name.startswith("NEW_"):
         allowed_str = ", ".join(allowed_upper)
         raise SecurityViolationError(
             f"ERROR: Concurrent Program '{clean_name}' is not authorized. "

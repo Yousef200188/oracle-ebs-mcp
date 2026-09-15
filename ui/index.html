@@ -855,7 +855,7 @@ WHERE
             <div class="form-group">
               <label>Application Short Name *</label>
               <select id="wz-app-short" class="form-input">
-                <option value="PER">PER — Human Resources</option>
+                <option value="PER" selected>PER — Human Resources (Recommended)</option>
                 <option value="PAY">PAY — Payroll</option>
                 <option value="BEN">BEN — Advanced Benefits</option>
                 <option value="GL">GL — General Ledger</option>
@@ -864,7 +864,8 @@ WHERE
                 <option value="PO">PO — Purchasing</option>
                 <option value="INV">INV — Inventory</option>
                 <option value="PA">PA — Projects</option>
-                <option value="XX" selected>XX — Custom Application</option>
+                <option value="XXRTL">XXRTL — Custom RTL Application</option>
+                <option value="XX">XX — Custom Application</option>
               </select>
             </div>
             <div class="form-group">
@@ -1349,6 +1350,17 @@ ORDER BY papf.full_name"></textarea>
     document.querySelectorAll('.wz-step').forEach(s => s.classList.remove('active'));
     document.getElementById('wz-sec-' + num).classList.add('active');
     document.getElementById('wz-step-' + num).classList.add('active');
+
+    if (num === 6 && wizardCurrentArch === 'RDF') {
+      const xml = document.getElementById('wz-xml-template');
+      const rtf = document.getElementById('wz-rtf-spec');
+      if (!xml.value || xml.value.includes("Click 'Generate'")) {
+        xml.value = `<!-- ========================================================= -->\n<!-- Architecture: Oracle Reports RDF (Pure Binary RDF)        -->\n<!-- ========================================================= -->\n<!-- XML Data Template is N/A for pure RDF reports.            -->\n<!-- Report layout is compiled directly into the binary .rdf.  -->\n<!-- You may proceed directly: click 'Next: Validate'.        -->`;
+      }
+      if (!rtf.value || rtf.value.includes("RTF spec will appear")) {
+        rtf.value = `/* ========================================================= */\n/* Architecture: Oracle Reports RDF (Pure Binary RDF)        */\n/* ========================================================= */\n/* RTF Layout spec is N/A. Layout is embedded in .rdf file.  */`;
+      }
+    }
   }
 
   // ─── Collect all fields into a design payload ──────────────────────────
@@ -1379,10 +1391,13 @@ ORDER BY papf.full_name"></textarea>
       };
     }).filter(Boolean);
 
+    const rawSn = (document.getElementById('wz-short-name').value || 'XX_REPORT').trim();
+    const cleanSn = rawSn.replace(/[^A-Za-z0-9_]/g, '_').replace(/_+/g, '_').toUpperCase();
+
     return {
-      report_name: document.getElementById('wz-report-name').value,
-      short_name: document.getElementById('wz-short-name').value.toUpperCase(),
-      application_short_name: document.getElementById('wz-app-short').value,
+      report_name: document.getElementById('wz-report-name').value || 'Custom Report',
+      short_name: cleanSn,
+      application_short_name: document.getElementById('wz-app-short').value || 'XX',
       architecture: wizardCurrentArch,
       sql_query: document.getElementById('wz-sql-query').value,
       parameters: params,
@@ -1497,6 +1512,11 @@ ORDER BY papf.full_name"></textarea>
 
   // ─── Generate XML Data Template ────────────────────────────────────────
   async function generateWizardXML() {
+    const xmlArea = document.getElementById('wz-xml-template');
+    if (wizardCurrentArch === 'RDF') {
+      xmlArea.value = `<!-- ========================================================= -->\n<!-- Architecture: Oracle Reports RDF (Pure Binary RDF)        -->\n<!-- ========================================================= -->\n<!-- XML Data Template is N/A for pure RDF reports.            -->\n<!-- Report layout is compiled directly into the binary .rdf.  -->\n<!-- You may proceed directly: click 'Next: Validate'.        -->`;
+      return;
+    }
     const payload = buildWizardPayload();
     try {
       const res = await fetch('/api/report/design', {
@@ -1515,13 +1535,18 @@ ORDER BY papf.full_name"></textarea>
         });
         const pkg = await pkgRes.json();
         if (pkg.xml_data_template) {
-          document.getElementById('wz-xml-template').value = pkg.xml_data_template;
+          xmlArea.value = pkg.xml_data_template;
         }
       }
     } catch(e) { console.error(e); }
   }
 
   async function generateWizardRTFSpec() {
+    const rtfArea = document.getElementById('wz-rtf-spec');
+    if (wizardCurrentArch === 'RDF') {
+      rtfArea.value = `/* ========================================================= */\n/* Architecture: Oracle Reports RDF (Pure Binary RDF)        */\n/* ========================================================= */\n/* RTF Layout spec is N/A. Layout is embedded in .rdf file.  */`;
+      return;
+    }
     if (!wizardDesign) await generateWizardXML();
     if (!wizardDesign) return;
     const pkgRes = await fetch('/api/report/package', {
@@ -1531,7 +1556,7 @@ ORDER BY papf.full_name"></textarea>
     });
     const pkg = await pkgRes.json();
     const rtfFile = pkg.files && Object.keys(pkg.files).find(k => k.includes('/rtf/'));
-    if (rtfFile) document.getElementById('wz-rtf-spec').value = pkg.files[rtfFile];
+    if (rtfFile) rtfArea.value = pkg.files[rtfFile];
   }
 
   // ─── Validation Checklist ──────────────────────────────────────────────
@@ -1636,10 +1661,16 @@ ORDER BY papf.full_name"></textarea>
         body: JSON.stringify({ report_design: wizardDesign, confirmed: true, environment: env })
       });
       const data = await res.json();
-      const steps = data.steps || [];
+      const steps = data.steps || data.results || [];
       let txt = `Status: ${data.status}\n`;
-      steps.forEach(s => { txt += `[${s.status.toUpperCase()}] ${s.step}\n${s.output||''}\n${s.error||''}\n`; });
-      if (data.message) txt += '\n' + data.message;
+      if (steps.length) {
+        steps.forEach(s => { 
+          txt += `\n[${(s.status||'').toUpperCase()}] ${s.step}`;
+          if (s.output && s.output.trim()) txt += `\nOutput:\n${s.output.trim()}`;
+          if (s.error && s.error.trim()) txt += `\nError:\n${s.error.trim()}`;
+        });
+      }
+      if (data.message) txt += '\n\n' + data.message;
       log.textContent = txt;
       badge.textContent = data.status === 'success' ? '✓ Deployed' : '✗ Failed';
       badge.className = 'wz-status-badge ' + (data.status === 'success' ? 'pass' : 'error');
@@ -1648,8 +1679,9 @@ ORDER BY papf.full_name"></textarea>
 
   // ─── Test Request ──────────────────────────────────────────────────────
   async function testWizardReport() {
-    const sn = document.getElementById('wz-short-name').value.toUpperCase();
-    const app = document.getElementById('wz-app-short').value;
+    const rawSn = (document.getElementById('wz-short-name').value || 'XX_REPORT').trim();
+    const sn = rawSn.replace(/[^A-Za-z0-9_]/g, '_').replace(/_+/g, '_').toUpperCase();
+    const app = document.getElementById('wz-app-short').value || 'XX';
     const log = document.getElementById('wz-action-log');
     const badge = document.getElementById('wz-log-status');
     log.textContent = `⏳ Submitting test request for ${sn}...`;
@@ -1663,7 +1695,10 @@ ORDER BY papf.full_name"></textarea>
         body: JSON.stringify({ short_name: sn, application_short_name: app, parameters: [], wait_seconds: 120 })
       });
       const data = await res.json();
-      log.textContent = `Status: ${data.status}\nRequest ID: ${data.request_id||'N/A'}\nPhase: ${data.phase||'N/A'}\nCompletion: ${data.completion_status||'N/A'}\n\nLog Preview:\n${data.log_preview||''}`;
+      let txt = `Status: ${data.status}\n`;
+      if (data.message) txt += `Message: ${data.message}\n`;
+      txt += `Request ID: ${data.request_id||'N/A'}\nPhase: ${data.phase||'N/A'}\nCompletion: ${data.completion_status||'N/A'}\n\nLog Preview:\n${data.log_preview||'No log'}`;
+      log.textContent = txt;
       badge.textContent = data.status === 'pass' ? '✓ Passed' : '✗ Failed';
       badge.className = 'wz-status-badge ' + (data.status === 'pass' ? 'pass' : 'error');
     } catch(e) { log.textContent = '✗ ' + e.message; }
